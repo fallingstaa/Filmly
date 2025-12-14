@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 // NOTE: Assuming this path is correct for your local setup
-import { useAuthStore } from '../../shared/store/authStore'; 
+import { useAuthStore } from '../../shared/store/authStore';
+import * as authApi from '../../api/authApi';
 
 type Mode = 'login' | 'signup';
 type Role = 'filmmaker' | 'organizer';
@@ -28,11 +29,23 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (!email) return setErr('Email is required.');
-
+    if (!email || !pw) return setErr('Email and password are required.');
     setLoading(true);
-    useAuthStore.getState().setUser(email, []); // No roles yet
-    router.push('/choose-role');
+    try {
+      if (mode === 'signup') {
+        // Call backend signup
+        const data = await authApi.signup(email, pw, name || org || email.split('@')[0]);
+        useAuthStore.getState().setUser(email, []);
+        router.push('/choose-role');
+      } else {
+        // Login
+        const data = await authApi.login(email, pw);
+        useAuthStore.getState().setUser(email, data.profile?.roles || []);
+        router.push('/choose-role');
+      }
+    } catch (err: any) {
+      setErr(err.message || 'Authentication failed.');
+    }
     setLoading(false);
   };
 

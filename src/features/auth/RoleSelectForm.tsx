@@ -19,6 +19,7 @@ export default function RoleSelectForm() {
     const { roles = [] } = useAuthStore.getState();
     const newRoles = roles.includes(role) ? roles : [...roles, role];
     useAuthStore.getState().setUser(email, newRoles, role);
+    localStorage.setItem('selected_role', role);
     // Always redirect to the correct dashboard
     if (role === 'filmmaker') {
       router.replace('/films');
