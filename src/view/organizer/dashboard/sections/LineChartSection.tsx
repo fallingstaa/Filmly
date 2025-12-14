@@ -1,54 +1,37 @@
 'use client';
 
-import { Line } from 'react-chartjs-2';
-import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from 'chart.js';
+export default function LineChartSection({ analytics }: { analytics: any }) {
+  const totalEvents = analytics?.totalEvents || 0;
+  const activeEvents = analytics?.activeEvents || 0;
+  const pastEvents = analytics?.pastEvents || 0;
+  const acceptanceRate = analytics?.acceptanceRate || 0;
+  const avgSubmissionsPerEvent = analytics?.averageSubmissionsPerEvent || 0;
 
-Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend);
-
-const data = {
-  labels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
-  datasets: [
-    {
-      label: 'Acceptance Rate',
-      data: [45, 42, 48, 50, 46, 52],
-      borderColor: '#14532D',
-      backgroundColor: '#14532D',
-      pointBackgroundColor: '#fff',
-      pointBorderColor: '#14532D',
-      pointRadius: 5,
-      pointHoverRadius: 7,
-      fill: false,
-      tension: 0.4,
-    },
-  ],
-};
-
-const options = {
-  plugins: {
-    legend: { display: false },
-  },
-  scales: {
-    x: {
-      grid: { color: '#E5E7EB' },
-      ticks: { color: '#14532D' },
-    },
-    y: {
-      beginAtZero: true,
-      grid: { color: '#E5E7EB' },
-      ticks: { color: '#14532D' },
-      max: 65,
-    },
-  },
-  responsive: true,
-  maintainAspectRatio: false,
-};
-
-export default function LineChartSection() {
   return (
     <section className="mb-6 bg-white rounded-xl shadow p-6">
-      <h2 className="text-green-900 font-semibold text-lg mb-2">Acceptance Rate Trend</h2>
-      <div className="w-full h-64">
-        <Line data={data} options={options} />
+      <h2 className="text-green-900 font-semibold text-lg mb-4">Event Overview</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-gray-500 text-sm mb-1">Total Events</p>
+          <p className="text-2xl font-bold text-green-900">{totalEvents}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-gray-500 text-sm mb-1">Active Events</p>
+          <p className="text-2xl font-bold text-green-900">{activeEvents}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-gray-500 text-sm mb-1">Past Events</p>
+          <p className="text-2xl font-bold text-green-900">{pastEvents}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-gray-500 text-sm mb-1">Acceptance Rate</p>
+          <p className="text-2xl font-bold text-green-900">{acceptanceRate}%</p>
+        </div>
+      </div>
+      <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+        <p className="text-sm text-green-900">
+          <span className="font-semibold">Average submissions per event:</span> {avgSubmissionsPerEvent}
+        </p>
       </div>
     </section>
   );

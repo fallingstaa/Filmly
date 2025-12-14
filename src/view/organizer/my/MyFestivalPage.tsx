@@ -1,66 +1,86 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FestivalDetailCard from './FestivalDetailCard';
-
-const festivals = [
-  { name: 'Tales of Tomorrow', date: '10.Oct.2025',
-    theme: 'Unseen Truths',
-    about: `There are things we sense but never speak, shadows hiding behind everyday smiles.\nSometimes the smallest detail reveals everything we tried to ignore.\nFollow the path of what's hidden, whispered, or half-forgotten.\nLet your film uncover what people rarely dare to face.`,
-    location: 'Cambodia',
-    festivalDates: 'January 16-26, 2026',
-    language: 'Khmer,english,thailad,...',
-    duration: '5-60m',
-    deadline: '25,Dec,2025',
-    stats: {
-      submissions: 352,
-      filmmakers: 287,
-      awards: 39,
-      complete: true,
-    }
-  },
-  { name: 'Beyond Reality', date: '10.Oct.2025', theme: 'Unseen Truths', about: '', location: '', festivalDates: '', language: '', duration: '', deadline: '', stats: {submissions: 0, filmmakers: 0, awards: 0, complete: false}},
-  { name: 'Moments That Matter', date: '10.Oct.2025', theme: 'Unseen Truths', about: '', location: '', festivalDates: '', language: '', duration: '', deadline: '', stats: {submissions: 0, filmmakers: 0, awards: 0, complete: false}},
-  { name: 'Whispers of Change', date: '10.Oct.2025', theme: 'Unseen Truths', about: '', location: '', festivalDates: '', language: '', duration: '', deadline: '', stats: {submissions: 0, filmmakers: 0, awards: 0, complete: false}},
-  { name: 'Visions of Freedom', date: '10.Oct.2025', theme: 'Unseen Truths', about: '', location: '', festivalDates: '', language: '', duration: '', deadline: '', stats: {submissions: 0, filmmakers: 0, awards: 0, complete: false}},
-  { name: 'Stories Untold', date: '10.Oct.2025', theme: 'Unseen Truths', about: '', location: '', festivalDates: '', language: '', duration: '', deadline: '', stats: {submissions: 0, filmmakers: 0, awards: 0, complete: false}},
-];
+import { getMyEvents, deleteEvent } from '@/api/organizerApi';
+import { useRouter } from 'next/navigation';
 
 const PAGE_SIZE = 10;
-const TOTAL_PAGES = 30;
-const PAGINATION_WINDOW = 5;
-
-function getPaginationWindow(current: number, total: number, window: number) {
-  const start = Math.floor((current - 1) / window) * window + 1;
-  const end = Math.min(start + window - 1, total);
-  const pages = [];
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-  return { pages, start, end };
-}
 
 export default function MyFestivalPage() {
+  const router = useRouter();
   const [selected, setSelected] = useState('All Festivals');
   const [page, setPage] = useState(1);
-  const [selectedFestival, setSelectedFestival] = useState(null as null | typeof festivals[0]);
-  // For demo, repeat festivals to fill pages
-  const pagedFestivals = Array(PAGE_SIZE).fill(0).map((_, i) => festivals[(i + (page - 1) * PAGE_SIZE) % festivals.length]);
-  const { pages, start, end } = getPaginationWindow(page, TOTAL_PAGES, PAGINATION_WINDOW);
+  const [selectedFestival, setSelectedFestival] = useState(null as any);
+  const [festivals, setFestivals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
 
-  const handlePrev = () => {
-    if (start > 1) {
-      setPage(start - PAGINATION_WINDOW);
+  useEffect(() => {
+    fetchFestivals();
+  }, [page]);
+
+  const fetchFestivals = async () => {
+    try {
+      setLoading(true);
+      const offset = (page - 1) * PAGE_SIZE;
+      const response = await getMyEvents(undefined, PAGE_SIZE, offset);
+      setFestivals(response.events || []);
+      setTotalCount(response.count || 0);
+    } catch (err: any) {
+      console.error('Error fetching festivals:', err);
+      setError(err.message || 'Failed to load festivals');
+    } finally {
+      setLoading(false);
     }
   };
-  const handleNext = () => {
-    if (end < TOTAL_PAGES) {
-      setPage(end + 1);
+
+  const handleDelete = async (eventId: number) => {
+    if (!confirm('Are you sure you want to delete this festival?')) {
+      return;
+    }
+
+    try {
+      await deleteEvent(eventId);
+      // Refresh the list
+      fetchFestivals();
+      setSelectedFestival(null);
+    } catch (err: any) {
+      alert('Failed to delete festival: ' + err.message);
     }
   };
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
 
   if (selectedFestival) {
     return (
-      <FestivalDetailCard festival={selectedFestival} onClose={() => setSelectedFestival(null)} />
+      <FestivalDetailCard
+        festival={selectedFestival}
+        onClose={() => setSelectedFestival(null)}
+        onDelete={handleDelete}
+      />
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading festivals...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          <p className="font-semibold">Error loading festivals</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
     );
   }
 
@@ -85,47 +105,62 @@ export default function MyFestivalPage() {
       </div>
       {/* Recent Festivals Grid */}
       <div>
-        <h2 className="text-green-900 font-semibold text-base mb-4">All the Recent Festival</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-          {pagedFestivals.map((fest, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col aspect-square overflow-hidden cursor-pointer" onClick={() => setSelectedFestival(fest)}>
-              <div className="bg-gray-100 flex items-center justify-center w-full h-1/2 min-h-[80px]">
-                <span className="text-2xl text-gray-400">🎬</span>
+        <h2 className="text-green-900 font-semibold text-base mb-4">All Your Festivals</h2>
+        {festivals.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+            {festivals.map((fest) => (
+              <div
+                key={fest.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col aspect-square overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedFestival(fest)}
+              >
+                <div className="bg-gray-100 flex items-center justify-center w-full h-1/2 min-h-[80px]">
+                  <span className="text-2xl text-gray-400">🎬</span>
+                </div>
+                <div className="px-4 py-3 flex-1 flex flex-col justify-end">
+                  <div className="font-medium text-gray-900 mb-1 truncate" title={fest.title}>
+                    {fest.title}
+                  </div>
+                  <div className="text-gray-500 text-sm">
+                    Deadline: {fest.deadline ? new Date(fest.deadline).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
               </div>
-              <div className="px-4 py-3 flex-1 flex flex-col justify-end">
-                <div className="font-medium text-gray-900 mb-1">{fest.name}</div>
-                <div className="text-gray-500 text-sm">Event date: {fest.date}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* Pagination Footer */}
-        <div className="flex flex-wrap justify-center mt-8 gap-1 items-center">
-          <button
-            className={`px-4 py-2 rounded-lg border font-semibold transition ${start === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-green-900 border-gray-300 hover:bg-green-50'}`}
-            onClick={handlePrev}
-            disabled={start === 1}
-          >
-            Previous
-          </button>
-          {pages.map((p) => (
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <p className="text-gray-500 mb-4">No festivals created yet</p>
             <button
-              key={p}
-              className={`px-3 py-2 rounded-lg border font-semibold text-sm mx-0.5 transition ${page === p ? 'bg-green-900 text-white border-green-900' : 'bg-white text-green-900 border-gray-300 hover:bg-green-50'}`}
-              onClick={() => setPage(p)}
-              aria-current={page === p ? 'page' : undefined}
+              onClick={() => router.push('/organizer/create')}
+              className="bg-green-900 text-white px-6 py-2 rounded hover:bg-green-800"
             >
-              {p}
+              Create Your First Festival
             </button>
-          ))}
-          <button
-            className={`px-4 py-2 rounded-lg border font-semibold transition ${end === TOTAL_PAGES ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-green-900 border-gray-300 hover:bg-green-50'}`}
-            onClick={handleNext}
-            disabled={end === TOTAL_PAGES}
-          >
-            Next
-          </button>
-        </div>
+          </div>
+        )}</div>
+        {/* Pagination Footer */}
+        {festivals.length > 0 && totalPages > 1 && (
+          <div className="flex justify-center mt-8 gap-2 items-center">
+            <button
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${page === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-green-900 border-gray-300 hover:bg-green-50'}`}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 text-gray-700">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${page === totalPages ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-green-900 border-gray-300 hover:bg-green-50'}`}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
