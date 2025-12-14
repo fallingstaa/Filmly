@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Match = {
   id: string;
@@ -20,81 +21,157 @@ type Props = {
 };
 
 export default function MatchingResultsGridSection({
-  matches,
-  boxWidth,
-  boxHeight,
-  columns,
-  gapPx,
+  matches = [],
+  boxWidth = '220px',
+  boxHeight = '220px',
+  columns = 3,
+  gapPx = 16,
 }: Props) {
+  const router = useRouter();
+
+  const TOTAL_PAGES = 5;
+  const PAGE_SIZE = 10; // 2 rows * 5 columns = 10 items per page
+  const ROWS = 2;
+  const [page, setPage] = useState(1);
+
+  const totalItems = matches.length;
+  const effectiveTotalPages = Math.max(
+    1,
+    Math.min(TOTAL_PAGES, Math.ceil(totalItems / PAGE_SIZE) || TOTAL_PAGES)
+  );
+
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return matches.slice(start, start + PAGE_SIZE);
+  }, [matches, page]);
+
+  const displayColumns = 5; // exactly 5 columns per row
+  const slotsPerPage = displayColumns * ROWS;
+
+  function openFestivalDetail(festivalId: string) {
+    router.push(`/films/festival/${festivalId}`);
+  }
+
+  function goPrev() {
+    setPage((p) => Math.max(1, p - 1));
+  }
+
+  function goNext() {
+    setPage((p) => Math.min(effectiveTotalPages, p + 1));
+  }
+
+  function handleAddFilm() {
+    router.push('/films/add');
+  }
+
   return (
     <div className="w-full">
+      {/* Centered Prev / Next pagination above the grid */}
+      <div className="w-full flex justify-center mb-6">
+        <nav className="inline-flex items-center space-x-3" aria-label="Pagination">
+          <button
+            onClick={goPrev}
+            disabled={page === 1}
+            className={`px-3 py-1 rounded-md text-sm ${page === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+            aria-label="Previous page"
+          >
+            Prev
+          </button>
+
+          {/* numeric indicators (optional) */}
+          <div className="inline-flex items-center space-x-2">
+            {Array.from({ length: effectiveTotalPages }).map((_, i) => {
+              const p = i + 1;
+              const active = p === page;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`px-3 py-1 rounded-md text-sm ${active ? 'bg-[#0C4A2A] text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={goNext}
+            disabled={page === effectiveTotalPages}
+            className={`px-3 py-1 rounded-md text-sm ${page === effectiveTotalPages ? 'bg-gray-100 text-gray-400' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+            aria-label="Next page"
+          >
+            Next
+          </button>
+        </nav>
+      </div>
+
+      {/* grid: 2 rows × 5 columns */}
       <div
+        className="grid"
         style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${columns}, ${boxWidth})`,
-          gridAutoRows: boxHeight,
+          gridTemplateColumns: `repeat(${displayColumns}, ${boxWidth})`,
           gap: `${gapPx}px`,
-          justifyContent: 'start',
-          alignContent: 'start',
-          paddingBottom: '8px',
         }}
       >
-        {matches.map((m) => (
+        {(pageItems || []).map((m) => (
           <div
             key={m.id}
-            style={{ width: boxWidth, height: boxHeight, boxSizing: 'border-box' }}
-            className="rounded-lg border border-[#EDEDED] bg-white shadow-sm flex flex-col justify-between p-6 overflow-hidden"
+            className="rounded-lg border bg-white shadow-sm flex flex-col justify-between p-4"
+            style={{ height: boxHeight }}
           >
             <div>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-md bg-[#F3F3F3] flex items-center justify-center text-[#6F6F6F]">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path d="M3 7h18" stroke="#6F6F6F" strokeWidth="1.2" strokeLinecap="round" />
-                      <rect x="3" y="7" width="18" height="10" rx="2" stroke="#6F6F6F" strokeWidth="1.2" />
-                    </svg>
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-semibold text-[#0C0C0C] leading-snug">{m.festival}</div>
-                    <div className="text-xs text-[#6F6F6F] mt-2">{m.type}</div>
-                  </div>
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center text-xl">🎬</div>
+
+                <div className="flex-1">
+                  <div className="text-sm font-semibold leading-snug text-[#065F46]">{m.festival}</div>
+                  <div className="text-xs text-gray-500 mt-1">{m.type}</div>
                 </div>
 
-                <div>
-                  <div className="inline-flex items-center justify-center px-3 py-2 rounded-md bg-[#2F9D52] text-white text-sm font-semibold">
-                    {m.score}% <span className="ml-2 text-xs opacity-90">Match</span>
+                <div className="ml-2">
+                  <div className="bg-[#0C4A2A] text-white rounded-md px-3 py-2 text-center">
+                    <div className="text-sm font-bold">{m.score}%</div>
+                    <div className="text-xs">Match</div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-6 text-sm text-[#6F6F6F] space-y-3">
+              <div className="mt-4 space-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 6.1 7 13 7 13s7-6.9 7-13c0-3.87-3.13-7-7-7z" stroke="#6F6F6F" strokeWidth="1.2" />
-                  </svg>
-                  <span className="capitalize">{m.country}</span>
+                  <span className="text-[#065F46]">📍</span>
+                  <span className="truncate">{m.country}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M7 10h10M7 14h10M17 4v2M7 4v2" stroke="#6F6F6F" strokeWidth="1.2" strokeLinecap="round" />
-                  </svg>
-                  <span>Deadline: {m.deadline}</span>
+                  <span className="text-[#065F46]">📅</span>
+                  <span className="truncate">Deadline: {m.deadline}</span>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-4">
               <button
-                onClick={() => window.alert(`Open details for ${m.festival} (implement)`)}
-                className="w-full rounded bg-[#00441B] text-white py-2 text-sm"
-                aria-label={`View details ${m.festival}`}
+                onClick={() => openFestivalDetail(m.id)}
+                className="w-full bg-[#0C4A2A] text-white py-2 rounded-md text-sm font-medium hover:opacity-95"
+                aria-label={`View ${m.festival} details`}
               >
                 View Details
               </button>
             </div>
           </div>
         ))}
+
+        {/* fill empty slots to keep layout stable */}
+        {pageItems.length < slotsPerPage &&
+          Array.from({ length: Math.max(0, slotsPerPage - pageItems.length) }).map((_, idx) => (
+            <div
+              key={`empty-${idx}`}
+              className="rounded-lg border bg-transparent"
+              style={{ height: boxHeight }}
+            />
+          ))}
       </div>
     </div>
   );

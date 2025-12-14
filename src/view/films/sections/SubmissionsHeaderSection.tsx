@@ -28,7 +28,7 @@ export default function SubmissionsHeaderSection() {
 
         <div>
           <button
-            onClick={() => (window.location.href = '/festival')}
+            onClick={() => (window.location.href = '/films/festival')}
             className="rounded-md bg-[#00441B] px-4 py-2 text-sm font-medium text-white"
           >
             Browse Festival

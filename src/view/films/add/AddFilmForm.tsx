@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const GENRES = [
   'Comedy',
@@ -21,7 +21,9 @@ const GENRES = [
   'Musical',
 ];
 
-export default function AddFilmForm() {
+// Accept festivalId as prop to distinguish submission type
+export default function AddFilmForm({ festivalId, editId }: { festivalId?: string; editId?: string }) {
+  // State for all fields
   const [title, setTitle] = useState('');
   const [country, setCountry] = useState('');
   const [duration, setDuration] = useState<number | ''>('');
@@ -32,20 +34,73 @@ export default function AddFilmForm() {
   const [filmFile, setFilmFile] = useState<File | null>(null);
   const [subFile, setSubFile] = useState<File | null>(null);
   const [pressFile, setPressFile] = useState<File | null>(null);
+  const [gmail, setGmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Load draft if editId is provided
+  useEffect(() => {
+    if (editId) {
+      try {
+        const films = JSON.parse(localStorage.getItem('mock_films') || '[]');
+        const draft = films.find((f: any) => f.id === editId);
+        if (draft) {
+          setTitle(draft.title || '');
+          setCountry(draft.country || '');
+          setDuration(draft.duration || '');
+          setGenre(draft.genre || '');
+          setLanguage(draft.language || '');
+          setTheme(draft.theme || '');
+          setSynopsis(draft.synopsis || '');
+          setGmail(draft.gmail || '');
+          // File fields can't be restored from localStorage, so leave them empty
+        }
+      } catch {}
+    }
+  }, [editId]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setter: (f: File | null) => void) {
     setter(e.target.files?.[0] ?? null);
   }
 
   function saveDraft() {
-    const draft = { title, country, duration, genre, language, theme, synopsis, savedAt: new Date().toISOString() };
-    localStorage.setItem('filmDraft', JSON.stringify(draft));
-    alert('Draft saved locally');
+    const draft = {
+      id: editId || `film_${Date.now()}`,
+      title,
+      country,
+      duration,
+      genre,
+      language,
+      theme,
+      synopsis,
+      gmail,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    let films = [];
+    try {
+      films = JSON.parse(localStorage.getItem('mock_films') || '[]');
+    } catch {}
+    const idx = films.findIndex((f: any) => f.id === draft.id);
+    if (idx >= 0) {
+      films[idx] = draft;
+    } else {
+      films.push(draft);
+    }
+    localStorage.setItem('mock_films', JSON.stringify(films));
+    alert('Draft saved locally!');
   }
 
-  // changed: mock AI submit - requires at least one input, shows spinner, saves mock data and navigates
+  // --- AI Matching Submission Logic ---
   function submitToAi() {
+    /**
+     * AI Matching Submission:
+     * - Triggered ONLY from "Add Film" in Project and AI Matching tab.
+     * - When integrating with backend:
+     *   - POST film data to backend for AI matching.
+     *   - Backend returns matching festivals/projects.
+     *   - Redirect user to matching results page.
+     */
     const hasAny =
       Boolean(title) ||
       Boolean(country) ||
@@ -53,10 +108,7 @@ export default function AddFilmForm() {
       Boolean(genre) ||
       Boolean(language) ||
       Boolean(theme) ||
-      Boolean(synopsis) ||
-      Boolean(filmFile) ||
-      Boolean(subFile) ||
-      Boolean(pressFile);
+      Boolean(synopsis);
 
     if (!hasAny) {
       alert('Please enter at least one field (title, theme, file, etc.) before submitting to AI.');
@@ -107,6 +159,20 @@ export default function AddFilmForm() {
     }, delay);
   }
 
+  // --- Festival Submission Logic ---
+  function submitToFestival() {
+    /**
+     * For testing: No validation, just allow submit.
+     * When integrating with backend, add validation and POST logic here.
+     */
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      alert('Film submitted to festival! (test mode, no validation)');
+      window.location.href = `/films/submissions`;
+    }, 1200);
+  }
+
   function cancel() {
     if (confirm('Discard changes?')) {
       if (typeof window !== 'undefined') window.history.back();
@@ -115,26 +181,34 @@ export default function AddFilmForm() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 relative">
-      <h1 className="text-2xl font-semibold text-[#0B5A2E] mb-2">Add New Film</h1>
-      <p className="text-sm text-[#6B736F] mb-6">Upload your film and get AI-powered festival recommendations</p>
-
+      {/* Gmail field above Title field */}
       <section className="rounded-lg border border-[#E6E6E6] bg-white p-6 mb-6 shadow-sm">
         <h2 className="text-lg font-medium text-[#0B5A2E] mb-4">Film Details</h2>
+        <div className="mb-4">
+          <label className="block mb-1 text-sm">Gmail</label>
+          <input
+            name="gmail"
+            type="email"
+            value={gmail}
+            onChange={(e) => setGmail(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+            placeholder="yourname@gmail.com"
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1 text-sm">Title</label>
+          <input
+            name="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
 
-        {/* Title + Country row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* Country, Duration, Genre, Language row */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className="text-sm text-[#333]">Film Title *</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter film title"
-              className="mt-2 w-full rounded-md border px-3 py-2 text-sm bg-[#FBFBFB]"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-[#333]">Production Country *</label>
+            <label className="block mb-1 text-sm">Production Country *</label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
@@ -147,12 +221,9 @@ export default function AddFilmForm() {
               <option>India</option>
             </select>
           </div>
-        </div>
 
-        {/* Single-row: Duration | Genre | Language */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="text-sm text-[#333]">Duration (minutes) *</label>
+            <label className="block mb-1 text-sm">Duration (minutes) *</label>
             <input
               type="number"
               value={duration}
@@ -163,7 +234,7 @@ export default function AddFilmForm() {
           </div>
 
           <div>
-            <label className="text-sm text-[#333]">Genre *</label>
+            <label className="block mb-1 text-sm">Genre *</label>
             <select
               value={genre}
               onChange={(e) => setGenre(e.target.value)}
@@ -179,7 +250,7 @@ export default function AddFilmForm() {
           </div>
 
           <div>
-            <label className="text-sm text-[#333]">Language *</label>
+            <label className="block mb-1 text-sm">Language *</label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -262,13 +333,25 @@ export default function AddFilmForm() {
       <div className="flex items-center justify-end gap-3 mb-8">
         <button onClick={cancel} className="rounded border px-4 py-2 text-sm bg-white">Cancel</button>
         <button onClick={saveDraft} className="rounded border px-4 py-2 text-sm bg-white">Save Draft</button>
-        <button
-          onClick={submitToAi}
-          disabled={loading}
-          className={`rounded px-4 py-2 text-sm ${loading ? 'bg-gray-300 text-gray-700 cursor-not-allowed' : 'bg-[#0B5A2E] text-white'}`}
-        >
-          {loading ? 'Running AI...' : 'Submit to Ai'}
-        </button>
+        {festivalId ? (
+          // Only show "Submit" for real festival submission
+          <button
+            onClick={submitToFestival}
+            disabled={loading}
+            className={`rounded px-4 py-2 text-sm ${loading ? 'bg-gray-300 text-gray-700 cursor-not-allowed' : 'bg-[#0B5A2E] text-white'}`}
+          >
+            {loading ? 'Submitting...' : 'Submit'}
+          </button>
+        ) : (
+          // Show "Submit to Ai" for AI matching
+          <button
+            onClick={submitToAi}
+            disabled={loading}
+            className={`rounded px-4 py-2 text-sm ${loading ? 'bg-gray-300 text-gray-700 cursor-not-allowed' : 'bg-[#0B5A2E] text-white'}`}
+          >
+            {loading ? 'Running AI...' : 'Submit to Ai'}
+          </button>
+        )}
       </div>
 
       {/* loading overlay */}
@@ -279,7 +362,9 @@ export default function AddFilmForm() {
               <circle cx="12" cy="12" r="10" stroke="rgba(11,90,46,0.15)" strokeWidth="4" />
               <path d="M22 12a10 10 0 00-10-10" stroke="#0B5A2E" strokeWidth="4" strokeLinecap="round" />
             </svg>
-            <div className="text-sm text-[#0B5A2E]">Running AI matching — this is a mockup</div>
+            <div className="text-sm text-[#0B5A2E]">
+              {festivalId ? 'Submitting to festival — this is a mockup' : 'Running AI matching — this is a mockup'}
+            </div>
           </div>
         </div>
       )}

@@ -45,46 +45,46 @@ export default function MatchingResultsHeaderSection({
         </div>
       </div>
 
-      {/* Title box (kept as the same box — now taller / stronger green and title centered) */}
+      {/* Title box (smaller height and padding) */}
       <div className="mb-4">
         <div
           className="rounded-md w-full flex items-center justify-center gap-3"
           style={{
-            background: '#E8FCEC',           // stronger single green tone
+            background: '#E8FCEC',
             border: '1px solid rgba(0,122,52,0.14)',
-            padding: '14px 18px',            // taller box
-            minHeight: 72,                   // ensure noticeable height
+            padding: '8px 14px',      // reduced padding
+            minHeight: 44,            // reduced height
           }}
           aria-hidden={false}
         >
           <div
             className="flex items-center justify-center rounded-full"
-            style={{ width: 44, height: 44, background: '#007A34', color: 'white', fontWeight: 700 }}
+            style={{ width: 32, height: 32, background: '#007A34', color: 'white', fontWeight: 700 }}
           >
             {String(selectedFilmTitle).charAt(0) || 'F'}
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-[#0B5A2E] opacity-90">Selected film</div>
-            <div className="text-lg font-semibold text-[#03411B] leading-tight">{selectedFilmTitle}</div>
+            <div className="text-xs text-[#0B5A2E] opacity-90">Selected film</div>
+            <div className="text-base font-semibold text-[#03411B] leading-tight">{selectedFilmTitle}</div>
           </div>
         </div>
       </div>
 
-      {/* LARGER film card: taller and title centered vertically */}
+      {/* LARGER film card: reduced height */}
       <div
         className="rounded-lg border border-[#F0F0F0] bg-white mb-6 w-full"
-        style={{ minHeight: boxHeight }}
+        style={{ minHeight: '180px' }} // reduced height
       >
-        <div className="h-full flex flex-col items-center justify-center text-center p-6">
-          <div className="h-14 w-14 rounded-md border border-[#DDEEE0] flex items-center justify-center text-[#00441B] mb-4">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <div className="h-full flex flex-col items-center justify-center text-center p-4">
+          <div className="h-10 w-10 rounded-md border border-[#DDEEE0] flex items-center justify-center text-[#00441B] mb-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <rect x="3" y="4" width="18" height="16" stroke="#0F5A34" strokeWidth="1.2" rx="2" />
               <path d="M7 4v16" stroke="#0F5A34" strokeWidth="1.2" />
             </svg>
           </div>
 
-          <h3 className="text-3xl font-semibold text-[#00441B]">{selectedFilmTitle}</h3>
+          <h3 className="text-xl font-semibold text-[#00441B]">{selectedFilmTitle}</h3>
         </div>
       </div>
     </div>

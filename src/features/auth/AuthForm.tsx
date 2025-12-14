@@ -28,40 +28,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    if (!email) return setErr('Email is required.');
 
-    // --- Validation Logic ---
-    if (!email || !pw) return setErr('Email and password are required.');
-    if (mode === 'signup') {
-      if (role === 'filmmaker' && !name) return setErr('Full name is required for Filmmakers.');
-      if (role === 'organizer' && !org) return setErr('Organization is required for Organizers.');
-      if (!country) return setErr('Please select a country.');
-    }
-    // --- End Validation Logic ---
-
-
-    try {
-      setLoading(true);
-      // Calls the mock signIn function from the store
-      const assigned = await signIn({
-        mode,
-        email,
-        password: pw,
-        signupRole: mode === 'signup' ? role : undefined,
-      });
-
-      // Route by assigned role (including mock 'admin' access)
-      if (assigned === 'filmmaker' || assigned === 'admin') {
-        router.push('/films'); // filmmaker dashboard
-      } else {
-        // Organizer route, which will be /dashboard
-        router.push('/dashboard'); 
-      }
-    } catch (e: any) {
-      // General error handling (e.g., if the store logic throws an error)
-      setErr(e?.message || 'Something went wrong. Could not process login/signup.');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    useAuthStore.getState().setUser(email, []); // No roles yet
+    router.push('/choose-role');
+    setLoading(false);
   };
 
   return (
@@ -93,36 +65,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
       <form onSubmit={onSubmit} className="mt-5 space-y-4">
         
-        {/* Role selector (signup only) - INTEGRATED FROM YOUR SNIPPET */}
-        {mode === 'signup' && (
-          <div className="mt-5">
-            <p className="mb-2 text-xs text-[#4D4D4D]">I am a</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole('filmmaker')}
-                className={`rounded-md border px-3 py-2 text-xs ${
-                  role === 'filmmaker'
-                    ? 'border-[#00441B] bg-[#E8F3EE] text-[#00441B] shadow-sm'
-                    : 'border-[#EDEDED] bg-white text-[#4D4D4D] hover:bg-gray-50'
-                }`}
-              >
-                Filmmaker
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('organizer')}
-                className={`rounded-md border px-3 py-2 text-xs ${
-                  role === 'organizer'
-                    ? 'border-[#00441B] bg-[#E8F3EE] text-[#00441B] shadow-sm'
-                    : 'border-[#EDEDED] bg-white text-[#4D4D4D] hover:bg-gray-50'
-                }`}
-              >
-                Organizer
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Role selection removed for signup. */}
 
         {/* Filmmaker specific field: Full Name - INTEGRATED FROM YOUR SNIPPET */}
         {mode === 'signup' && role === 'filmmaker' && (

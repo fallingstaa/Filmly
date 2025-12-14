@@ -13,9 +13,7 @@ const SAMPLE_FILMS: Film[] = [
   { id: 'f3', title: 'Silent Waves' },
 ];
 
-// increased sample so pagination can be tested up to 4 pages
 const MATCHES: Record<string, Match[]> = {
-  // f1 now has 40 items (8 items per page -> 5 pages possible; we cap pages below)
   f1: Array.from({ length: 40 }).map((_, i) => ({
     id: `m${i + 1}`,
     festival: `Festival ${i + 1}`,
@@ -47,20 +45,11 @@ export default function MatchingResultsSection() {
   const [selectedFilmTitle, setSelectedFilmTitle] = useState<string>(SAMPLE_FILMS[0].title);
   const [matches, setMatches] = useState<Match[]>(MATCHES[SAMPLE_FILMS[0].id] || []);
 
-  // page layout: 2 rows x 4 columns per page (8 items per page)
-  const ROWS_PER_PAGE = 2;
+  // keep layout values for grid
   const COLUMNS = 4;
-  const ITEMS_PER_PAGE = ROWS_PER_PAGE * COLUMNS;
-
-  // cap pages to 4 so we can test up to 4 pages
-  const maxPagesCap = 4;
-
-  // box sizing (unchanged)
   const BOX_W = '294.22px';
   const BOX_H = '338.33px';
   const GAP_PX = 16;
-
-  const [page, setPage] = useState<number>(1);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -72,7 +61,6 @@ export default function MatchingResultsSection() {
       setSelectedFilmId(film.id);
       setSelectedFilmTitle(film.title);
       setMatches(MATCHES[film.id] ?? []);
-      setPage(1);
       return;
     }
     if (qTitle) {
@@ -81,7 +69,6 @@ export default function MatchingResultsSection() {
         setSelectedFilmId(film.id);
         setSelectedFilmTitle(film.title);
         setMatches(MATCHES[film.id] ?? []);
-        setPage(1);
       }
     }
   }, []);
@@ -91,7 +78,6 @@ export default function MatchingResultsSection() {
     setSelectedFilmId(film.id);
     setSelectedFilmTitle(film.title);
     setMatches(MATCHES[film.id] ?? []);
-    setPage(1);
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       params.set('filmId', film.id);
@@ -99,14 +85,6 @@ export default function MatchingResultsSection() {
       window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
   }
-
-  // compute pages
-  const computedTotalPages = Math.max(1, Math.ceil(matches.length / ITEMS_PER_PAGE));
-  const totalPages = Math.min(maxPagesCap, computedTotalPages);
-  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
-
-  const start = (page - 1) * ITEMS_PER_PAGE;
-  const pagedMatches = matches.slice(start, start + ITEMS_PER_PAGE);
 
   return (
     <div className="rounded-xl border border-[#EDEDED] bg-white p-4 shadow-sm w-full">
@@ -119,46 +97,9 @@ export default function MatchingResultsSection() {
         boxHeight={BOX_H}
       />
 
-      {/* Pagination moved to top-right of the festival area */}
-      <div className="mb-3 flex items-center justify-end">
-        <div className="inline-flex items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-2 py-1 rounded border bg-white text-sm disabled:opacity-50"
-            aria-label="Previous page"
-          >
-            Prev
-          </button>
-
-          {Array.from({ length: totalPages }).map((_, i) => {
-            const p = i + 1;
-            return (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`px-2 py-1 rounded text-sm ${p === page ? 'bg-[#00441B] text-white' : 'bg-white border'}`}
-                aria-label={`Page ${p}`}
-              >
-                {p}
-              </button>
-            );
-          })}
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-2 py-1 rounded border bg-white text-sm disabled:opacity-50"
-            aria-label="Next page"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
-      {/* Grid renders current page (no vertical scroll) */}
+      {/* Removed duplicate pagination here — MatchingResultsGridSection now shows centered Prev/Next above grid */}
       <MatchingResultsGridSection
-        matches={pagedMatches}
+        matches={matches}          // pass full list; grid will paginate (2 rows x 5 cols)
         boxWidth={BOX_W}
         boxHeight={BOX_H}
         columns={COLUMNS}

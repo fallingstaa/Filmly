@@ -2,12 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../../src/shared/store/authStore';
-
-// Assuming these icons are defined in this file or imported from another location
-// Since they are defined at the bottom, we'll keep them there.
-// For the purpose of the fix, we just need to make sure they are referenced correctly.
 
 type NavItem = {
   href: string;
@@ -15,45 +11,50 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-// Icons are assumed to be available from the component definitions below.
-// Add them here for clarity in the file's scope (or import them if separate).
-// They are available because they are defined later in the same file.
-
 const nav: NavItem[] = [
   { href: '/films', label: 'Dashboard', icon: DashboardIcon },
   { href: '/films/submissions', label: 'My Submission', icon: PlusCircleIcon },
   { href: '/films/matching', label: 'Project and Ai matching', icon: TargetIcon },
-  { href: '/festival', label: 'Festival', icon: DatabaseIcon },
-  { href: '/billing', label: 'Subscription', icon: CardIcon },
+  { href: '/films/festival', label: 'Festival', icon: DatabaseIcon },
+  { href: '/films/billing', label: 'Subscription', icon: CardIcon }, // <-- updated path
 ];
 
 export default function FilmmakerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
+  const router = useRouter();
   const role = useAuthStore((s) => s.role);
+  const roles = useAuthStore((s) => s.roles);
   const email = useAuthStore((s) => s.userEmail);
+  const activeRole = useAuthStore((s) => s.activeRole);
   const [collapsed, setCollapsed] = useState(false);
 
-  // choose the nav item with the longest matching prefix so nested routes activate the most specific item
+  // Simple active link logic: checks for exact match or prefix match
   const activeHref = nav.reduce((best, item) => {
     if (!pathname) return best;
+    // Exact match is always best
     if (pathname === item.href) return item.href;
+    // Prefix match, prioritizing longer matches (e.g., /films/submissions over /films)
     if (pathname.startsWith(item.href) && item.href.length > (best?.length ?? 0)) return item.href;
     return best;
   }, '');
 
+  // Redirect based on role
+  React.useEffect(() => {
+    // Only redirect if user is NOT a filmmaker
+    if (activeRole && activeRole !== 'filmmaker') {
+      window.location.href = activeRole === 'organizer' ? '/organizer' : '/choose-role';
+    }
+  }, [activeRole, router]);
+
   return (
-    // Root container fills the viewport and uses flex row layout
     <div className="h-screen bg-white text-[#0C0C0C] flex">
-      {/* Sticky sidebar */}
       <aside
-        className={`sticky top-0 h-screen border-r border-[#EDEDED] flex flex-col overflow-y-auto transition-[width] duration-200 ${
-          collapsed ? 'w-[72px]' : 'w-[256px]'
-        }`}
+        className={`sticky top-0 h-screen border-r border-[#EDEDED] flex flex-col overflow-y-auto transition-[width] duration-200${collapsed ? ' w-20' : ' w-64'}`}
       >
-        {/* Sidebar header */}
+        {/* Header/Logo/Toggle */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-[#00441B]" />
+            <img src="/Icon.svg" alt="Filmly logo" className="h-8 w-8 rounded-md object-cover" />
             {!collapsed && <span className="text-sm font-semibold text-[#00441B]">Filmly</span>}
           </div>
           <button
@@ -88,7 +89,9 @@ export default function FilmmakerLayout({ children }: { children: React.ReactNod
         {/* Sidebar profile (at the bottom of nav) */}
         <div className="mt-auto px-3 py-4 border-t border-[#EDEDED]">
           <div
-            className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}
+            className={`flex items-center cursor-pointer ${collapsed ? 'justify-center' : 'gap-3'}`}
+            onClick={() => window.location.href = '/profile'} // <-- Add this line
+            title="View Profile"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#00441B] text-white text-xs font-semibold">
               {email ? email.substring(0, 2).toUpperCase() : 'FM'}
@@ -98,21 +101,38 @@ export default function FilmmakerLayout({ children }: { children: React.ReactNod
                 <div className="text-sm font-semibold text-[#0C0C0C]">
                   {email || 'John Doe'}
                 </div>
-                <div className="text-xs text-[#6F6F6F]">{role || 'Filmmaker'}</div>
+                <div className="text-xs text-[#6F6F6F]">
+                  {activeRole || 'Filmmaker'}
+                </div>
               </div>
             )}
           </div>
           {!collapsed && (
-            <button
-              onClick={() => {
-                useAuthStore.getState().signOut();
-                window.location.href = '/login';
-              }}
-              className="mt-3 flex items-center gap-2 rounded-md border border-[#EDEDED] px-3 py-2 text-sm text-[#1A1A1A] hover:bg-[#F6F6F6] w-full"
-            >
-              <LogoutIcon className="h-4 w-4 text-[#2F623F]" />
-              Logout
-            </button>
+            <div className="mt-3 flex flex-col gap-2 w-full">
+              <button
+                onClick={() => {
+                  // Switch to organizer role and redirect
+                  const { userEmail, roles = [] } = useAuthStore.getState();
+                  const newRoles = roles.includes('organizer') ? roles : [...roles, 'organizer'];
+                  useAuthStore.getState().setUser(userEmail, newRoles, 'organizer');
+                  window.location.href = '/organizer/dashboard';
+                }}
+                className="flex items-center gap-2 rounded-md border border-[#EDEDED] px-3 py-2 text-sm text-[#1A1A1A] hover:bg-[#F6F6F6] w-full"
+              >
+                <TargetIcon className="h-4 w-4 text-[#2F623F]" />
+                Organizer
+              </button>
+              <button
+                onClick={() => {
+                  useAuthStore.getState().signOut();
+                  window.location.href = '/login';
+                }}
+                className="flex items-center gap-2 rounded-md border border-[#EDEDED] px-3 py-2 text-sm text-[#1A1A1A] hover:bg-[#F6F6F6] w-full"
+              >
+                <LogoutIcon className="h-4 w-4 text-[#2F623F]" />
+                Logout
+              </button>
+            </div>
           )}
         </div>
       </aside>
