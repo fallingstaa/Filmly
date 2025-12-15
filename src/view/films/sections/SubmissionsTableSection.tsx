@@ -1,3 +1,5 @@
+// SubmissionsTableSection.tsx
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -8,7 +10,7 @@ type Submission = {
   festival: string;
   eventDate?: string;
   submissionStatus: 'Accepted' | 'Rejected';
-  judgingStatus?: 'Under Review' | 'Shortlist' | 'Nominee' | string;
+  judgingStatus?: 'Under Review' | 'Shortlist' | 'Nominee' | '';
   comments?: string;
   image?: string;
 };
@@ -23,19 +25,42 @@ async function fetchSubmissions(): Promise<Submission[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    // Map API data to Submission[]
-    if (!data?.submissions) return [];
-    return data.submissions.map((item: any) => ({
-      id: item.id?.toString() ?? '',
-      film: item.film?.title ?? '-',
-      festival: item.event?.name ?? '-',
-      eventDate: item.event?.date ?? '-',
-      submissionStatus: item.submissionStatus === 'submitted' ? 'Accepted' : 'Rejected',
-      judgingStatus: item.judgingStatus || '-',
-      comments: item.comments || '',
-      image: item.film?.posterUrl || '/image/10.svg',
-    }));
-  } catch {
+    // Map backend fields to Submission type (snake_case from API)
+    const mapSubmission = (item: any): Submission => {
+      let submissionStatus: 'Accepted' | 'Rejected' = 'Rejected';
+      let judgingStatus: 'Under Review' | 'Shortlist' | 'Nominee' | '' = '';
+      // Only 'accept' and 'reject' are Submission Status
+      if (item.submission_status === 'accept') {
+        submissionStatus = 'Accepted';
+      } else if (item.submission_status === 'reject') {
+        submissionStatus = 'Rejected';
+      } else if (item.submission_status === 'under_review') {
+        submissionStatus = 'Accepted';
+        judgingStatus = 'Under Review';
+      } else if (item.submission_status === 'shortlist') {
+        submissionStatus = 'Accepted';
+        judgingStatus = 'Shortlist';
+      } else if (item.submission_status === 'nominee') {
+        submissionStatus = 'Accepted';
+        judgingStatus = 'Nominee';
+      }
+      return {
+        id: item.id?.toString() ?? '',
+        film: item.film?.title ?? '-',
+        festival: item.event?.title ?? '-',
+        eventDate: item.event?.deadline ?? '-',
+        submissionStatus,
+        judgingStatus,
+        comments: item.comments || '',
+        image: item.film?.filmPosterUrl || '/image/10.svg',
+      };
+    };
+    const allSubs = Array.isArray(data.submissions)
+      ? data.submissions.map(mapSubmission)
+      : [];
+    return allSubs;
+  } catch (e) {
+    console.error('Error fetching submissions:', e);
     return [];
   }
 }
@@ -113,7 +138,9 @@ export default function SubmissionsTableSection() {
                     <td className="px-6 py-4 align-top text-[#4D4D4D] max-w-[240px] break-words">{row.festival}</td>
                     <td className="px-6 py-4 align-top"><SubmissionBadge status={row.submissionStatus} /></td>
                     <td className="px-6 py-4 align-top">
-                      {row.judgingStatus && row.judgingStatus !== '-' ? <JudgingBadge status={row.judgingStatus} /> : <span className="text-[#8A8A8A]">-</span>}
+                      {row.submissionStatus === 'Accepted' && row.judgingStatus && row.judgingStatus !== ''
+                        ? <JudgingBadge status={row.judgingStatus} />
+                        : <span className="text-[#8A8A8A]">-</span>}
                     </td>
                     <td className="px-6 py-4 align-top text-sm text-[#616161] max-w-[380px] break-words">{row.comments}</td>
                   </tr>
@@ -193,15 +220,16 @@ export default function SubmissionsTableSection() {
   );
 }
 
-function SubmissionBadge({ status }: { status: Submission['submissionStatus'] }) {
-  if (status === 'Accepted') return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#1F8A3A] text-white">Accepted</span>;
-  return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#D62E2E] text-white">Rejected</span>;
+
+function SubmissionBadge({ status }: { status: 'Accepted' | 'Rejected' }) {
+  if (status === 'Accepted') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#43B26C] text-white">Accept</span>;
+  return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#E14C4C] text-white">Reject</span>;
 }
 
 function JudgingBadge({ status }: { status: Submission['judgingStatus'] }) {
   if (!status) return null;
-  if (status === 'Under Review') return <span className="inline-flex px-3 py-1 rounded-full text-xs bg-[#F1F5F3] text-[#364A3A]">{status}</span>;
-  if (status === 'Shortlist') return <span className="inline-flex px-3 py-1 rounded-full text-xs bg-[#FFF4E6] text-[#B85F00]">{status}</span>;
-  if (status === 'Nominee') return <span className="inline-flex px-3 py-1 rounded-full text-xs bg-[#EAF3FF] text-[#0B59A3]">{status}</span>;
-  return <span className="inline-flex px-3 py-1 rounded-full text-xs bg-[#9B5CFF] text-white">{status}</span>;
+  if (status === 'Under Review') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#4285F4] text-white">Under Review</span>;
+  if (status === 'Shortlist') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#FBC02D] text-white">Shortlist</span>;
+  if (status === 'Nominee') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#7E57C2] text-white">Nominee</span>;
+  return null;
 }

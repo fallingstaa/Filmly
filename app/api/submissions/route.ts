@@ -1,72 +1,81 @@
+// route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+
+// GET /api/submissions
 export async function GET(request: NextRequest) {
-  // 1. Get the user's JWT from the Authorization header
   const authHeader = request.headers.get('authorization');
-  if (!authHeader) {
-    return NextResponse.json({ error: 'No authorization header' }, { status: 401 });
+  let userUid = null;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    userUid = getUidFromAuthHeader(authHeader);
   }
 
-  // 2. Get the user's UUID from the JWT (Supabase RLS uses this)
-  // We'll use the JWT to authorize the Supabase REST requests
-  const userUuid = await getUidFromAuthHeader(authHeader);
-  if (!userUuid) {
-    return NextResponse.json({ error: 'Invalid JWT' }, { status: 401 });
-  }
+  let userId = null;
+  if (userUid && token) {
+    try {
+        const userProfileRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/user_profile?select=id&uuid=eq.${userUid}`,
+            {
+                headers: {
+                    apikey: SUPABASE_ANON_KEY,
+                    // Use the user's token for RLS
+                    authorization: `Bearer ${token}`, 
+                },
+            }
+        );
 
-  // 3. Get the user's integer id from user_profile using their UUID
-  const userProfileRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/user_profile?select=id&uuid=eq.${userUuid}`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        authorization: authHeader,
-      },
+        if (!userProfileRes.ok) {
+            console.error('Failed to fetch user profile:', userProfileRes.status, await userProfileRes.text());
+        } else {
+            const userProfiles = await userProfileRes.json();
+            if (Array.isArray(userProfiles) && userProfiles.length > 0) {
+                userId = userProfiles[0].id;
+            }
+        }
+    } catch (e) {
+        console.error('Exception fetching user profile:', e);
     }
-  );
-  const userProfiles = await userProfileRes.json();
-  if (!userProfiles.length) {
-    return NextResponse.json({ submissions: [] });
-  }
-  const userId = userProfiles[0].id;
-
-  // 4. Get all film ids for this user
-  const filmsRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/film?uid=eq.${userId}`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        authorization: authHeader,
-      },
-    }
-  );
-  const films = await filmsRes.json();
-  const filmIds = films.map((f: any) => f.id);
-
-  console.log('User films:', filmIds);
-
-  if (!filmIds.length) {
-    return NextResponse.json({ submissions: [] });
   }
 
-  // 5. Get all submissions for these films
-  const idsList = filmIds.join(',');
-  const subsRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/event_film_submission?film_id=in.(${idsList})&select=*,film(*),event(*)`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        authorization: authHeader,
-      },
-    }
-  );
+  // Base query: select all submission data and join film/event details
+  let query = `${SUPABASE_URL}/rest/v1/event_film_submission?select=*,film(*),event(*)`;
+  
+  // Conditionally filter submissions by the user's ID
+  if (userId) {
+    // ASSUMPTION: 'film' table has a column named 'uid' which stores the user's custom ID.
+    query += `&film.uid=eq.${userId}`;
+  } else {
+    // If no user ID is found (e.g., bad token or profile not found), 
+    // we should prevent unauthorized access based on RLS. 
+    // If RLS is set up correctly, the query below will return [] if not authenticated.
+    // If you need to return submissions for *all* users when not logged in, 
+    // remove this 'else' block and ensure RLS permits public read access.
+  }
+
+  const subsRes = await fetch(query, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      // Use the user's token for RLS enforcement on the main query
+      ...(token ? { authorization: `Bearer ${token}` } : {}), 
+    },
+  });
+  
+  if (!subsRes.ok) {
+    console.error('Failed to fetch submissions from Supabase:', subsRes.status, await subsRes.text());
+    return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: subsRes.status });
+  }
+  
   const submissions = await subsRes.json();
-
-  console.log('Fetched submissions:', submissions);
-
+  
+  console.log('Raw submissions:', submissions);
+  
+  // Returning the data in the structure that SubmissionsTableSection.tsx now expects:
   return NextResponse.json({ submissions });
 }
 
@@ -77,7 +86,17 @@ function getUidFromAuthHeader(authHeader: string): string | null {
   if (!token) return null;
   // Decode JWT to get the 'sub' (uuid) claim
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8'));
+    // The payload is the second part of the JWT
+    const base64Payload = token.split('.')[1];
+    if (!base64Payload) return null;
+    
+    // JWT payload is base64url encoded, need to convert to standard base64 for Buffer
+    let payloadString = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
+    while (payloadString.length % 4) {
+        payloadString += '=';
+    }
+
+    const payload = JSON.parse(Buffer.from(payloadString, 'base64').toString('utf-8'));
     return payload.sub || null;
   } catch {
     return null;
