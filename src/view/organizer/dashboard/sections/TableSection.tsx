@@ -1,33 +1,11 @@
 'use client';
 
-const data = [
-	{
-		festival: 'NY Independent Film Festival',
-		submissions: 142,
-		awards: 15,
-		rate: '10.6%',
-	},
-	{
-		festival: 'LA Short Film Showcase',
-		submissions: 89,
-		awards: 10,
-		rate: '11.2%',
-	},
-	{
-		festival: 'Miami Documentary Festival',
-		submissions: 67,
-		awards: 8,
-		rate: '11.9%',
-	},
-	{
-		festival: 'Chicago Student Film Awards',
-		submissions: 54,
-		awards: 6,
-		rate: '11.1%',
-	},
-];
+export default function TableSection({ analytics }: { analytics: any }) {
+	const topEvents = analytics?.topEvents || [];
+	const totalSubmissions = analytics?.totalSubmissions || 0;
+	const totalAwards = analytics?.totalAwardsGiven || 0;
+	const acceptanceRate = analytics?.acceptanceRate || 0;
 
-export default function TableSection() {
 	return (
 		<section className="mb-6 bg-white rounded-xl shadow p-6">
 			<h2 className="text-green-900 font-semibold text-lg mb-4">
@@ -39,32 +17,43 @@ export default function TableSection() {
 						<tr className="text-gray-500 text-sm">
 							<th className="px-4 py-2 font-semibold">Festival</th>
 							<th className="px-4 py-2 font-semibold">Total Submissions</th>
-							<th className="px-4 py-2 font-semibold">Awards Given</th>
-							<th className="px-4 py-2 font-semibold">Acceptance Rate</th>
+							<th className="px-4 py-2 font-semibold">Deadline</th>
 						</tr>
 					</thead>
 					<tbody>
-						{data.map((row) => (
-							<tr
-								key={row.festival}
-								className="bg-white border-b last:border-b-0"
-							>
-								<td className="px-4 py-2 text-gray-900 whitespace-nowrap">
-									{row.festival}
+						{topEvents.length > 0 ? (
+							topEvents.map((event: any) => (
+								<tr
+									key={event.id}
+									className="bg-white border-b last:border-b-0"
+								>
+									<td className="px-4 py-2 text-gray-900 whitespace-nowrap">
+										{event.title}
+									</td>
+									<td className="px-4 py-2 text-gray-900">
+										{event.submissionCount}
+									</td>
+									<td className="px-4 py-2 text-gray-900">
+										{event.deadline ? new Date(event.deadline).toLocaleDateString() : 'N/A'}
+									</td>
+								</tr>
+							))
+						) : (
+							<tr>
+								<td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+									No events yet. Create your first festival to see analytics!
 								</td>
-								<td className="px-4 py-2 text-gray-900">
-									{row.submissions}
-								</td>
-								<td className="px-4 py-2 text-gray-900">{row.awards}</td>
-								<td className="px-4 py-2 text-gray-900">{row.rate}</td>
 							</tr>
-						))}
-						<tr className="bg-gray-50 border-t font-semibold">
-							<td className="px-4 py-2 text-green-900">Total</td>
-							<td className="px-4 py-2 text-green-900">352</td>
-							<td className="px-4 py-2 text-green-900">39</td>
-							<td className="px-4 py-2 text-green-900">11.1%</td>
-						</tr>
+						)}
+						{topEvents.length > 0 && (
+							<tr className="bg-gray-50 border-t font-semibold">
+								<td className="px-4 py-2 text-green-900">Total</td>
+								<td className="px-4 py-2 text-green-900">{totalSubmissions}</td>
+								<td className="px-4 py-2 text-green-900">
+									{acceptanceRate}% accepted
+								</td>
+							</tr>
+						)}
 					</tbody>
 				</table>
 			</div>

@@ -1,7 +1,5 @@
-export default function BarChartSection() {
-  return (
-    <section className="mb-6 bg-white rounded shadow p-4">
-      Bar Chart Section
-    </section>
-  );
+export default function BarChartSection({ analytics }: { analytics: any }) {
+  // This section is intentionally left for future expansion
+  // Could show genre comparison, event comparison, etc.
+  return null;
 }

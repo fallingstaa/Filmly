@@ -1,3 +1,5 @@
+import { FiFilm, FiUsers, FiAward } from 'react-icons/fi';
+
 function DashboardHeader() {
 	return (
 		<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
@@ -18,30 +20,28 @@ function DashboardHeader() {
 	);
 }
 
-import { FiFilm, FiUsers, FiAward } from 'react-icons/fi';
+export default function StatsSection({ analytics }: { analytics: any }) {
+	const stats = [
+		{
+			label: 'Total Submissions',
+			value: analytics?.totalSubmissions || 0,
+			icon: <FiFilm size={24} className="text-green-900" />,
+			sub: 'All festivals combined',
+		},
+		{
+			label: 'Total Nominee',
+			value: analytics?.totalNominees || 0,
+			icon: <FiUsers size={24} className="text-green-900" />,
+			sub: 'Reviewed submissions',
+		},
+		{
+			label: 'Awards Given',
+			value: analytics?.totalAwardsGiven || 0,
+			icon: <FiAward size={24} className="text-green-900" />,
+			sub: 'Across all festivals',
+		},
+	];
 
-const stats = [
-	{
-		label: 'Total Submissions',
-		value: 352,
-		icon: <FiFilm size={24} className="text-green-900" />,
-		sub: 'All festivals combined',
-	},
-	{
-		label: 'Total Nominee',
-		value: 287,
-		icon: <FiUsers size={24} className="text-green-900" />,
-		sub: 'Unique filmmakers',
-	},
-	{
-		label: 'Awards Given',
-		value: 39,
-		icon: <FiAward size={24} className="text-green-900" />,
-		sub: 'Across all festivals',
-	},
-];
-
-export default function StatsSection() {
 	return (
 		<>
 			<DashboardHeader />

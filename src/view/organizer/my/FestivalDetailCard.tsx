@@ -1,43 +1,39 @@
 import React from 'react';
 
 interface FestivalDetailCardProps {
-  festival: {
-    name: string;
-    theme: string;
-    about: string;
-    location: string;
-    country?: string;
-    city?: string;
-    address?: string;
-    festivalDates: string;
-    language: string | string[];
-    languages?: string[];
-    duration: string;
-    deadline: string;
-    website?: string;
-    contactEmail?: string;
-    genres?: string[];
-    categories?: string[];
-    stats: {
-      submissions: number;
-      filmmakers: number;
-      awards: number;
-      complete: boolean;
-    };
-  };
+  festival: any; // Backend event object
   onClose: () => void;
+  onDelete?: (eventId: number) => void;
 }
 
-export default function FestivalDetailCard({ festival, onClose }: FestivalDetailCardProps) {
-  // Provide mock data for missing fields for demo purposes
+export default function FestivalDetailCard({ festival, onClose, onDelete }: FestivalDetailCardProps) {
+  // Map backend data to display format
   const modal = {
-    ...festival,
-    country: festival.country || 'Cambodia',
-    location: festival.location || 'Phnom Penh',
-    festivalDates: festival.festivalDates || 'January 16–26, 2026',
-    language: festival.language || ['Khmer', 'English', 'Thai'],
-    duration: festival.duration || '5–60mn',
-    deadline: festival.deadline || '25, Dec, 2025',
+    name: festival.title || 'Untitled Festival',
+    theme: festival.description || 'No theme provided',
+    about: festival.description || 'No description available',
+    location: festival.location || 'Not specified',
+    festivalDates: festival.createdAt ? `Created: ${new Date(festival.createdAt).toLocaleDateString()}` : 'N/A',
+    language: festival.language || 'Not specified',
+    duration: festival.duration ? `${festival.duration} minutes` : 'Not specified',
+    deadline: festival.deadline ? new Date(festival.deadline).toLocaleDateString() : 'No deadline set',
+    genres: festival.genre || [],
+    website: festival.website || null,
+    contactEmail: festival.contactEmail || null,
+    country: festival.country || null,
+    languages: festival.languages || null,
+    stats: {
+      submissions: 0, // Would need to fetch from submissions API
+      filmmakers: 0,
+      awards: 0,
+      complete: new Date(festival.deadline) < new Date(),
+    },
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(festival.id);
+    }
   };
   return (
     <div className="w-full min-h-screen bg-[#F6F7F6] flex flex-col items-center py-10">
@@ -76,7 +72,22 @@ export default function FestivalDetailCard({ festival, onClose }: FestivalDetail
                 <a href={`mailto:${modal.contactEmail}`} className="underline text-[#17613B]">{modal.contactEmail}</a>
               </div>
             )}
-            <button className="bg-[#0B4C2F] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#17613B] mt-4">Edit Festival</button>
+            <div className="flex gap-3 mt-4">
+              <button
+                className="bg-[#0B4C2F] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#17613B]"
+                onClick={() => alert('Edit functionality coming soon')}
+              >
+                Edit Festival
+              </button>
+              {onDelete && (
+                <button
+                  className="bg-red-600 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-700"
+                  onClick={handleDelete}
+                >
+                  Delete Festival
+                </button>
+              )}
+            </div>
           </div>
           {/* Info Section - visually distinct card, styled as screenshot */}
           <div className="flex-1 min-w-[260px] bg-white rounded-xl shadow-inner p-6 space-y-6 text-base border border-[#E0E4E0]">
