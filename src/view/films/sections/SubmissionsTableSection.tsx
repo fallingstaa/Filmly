@@ -13,21 +13,46 @@ type Submission = {
   image?: string;
 };
 
-const SAMPLE: Submission[] = [
-  { id: '1', film: 'The Last Dawn', festival: 'Tribeca Film Festival', eventDate: '10.11.2024', submissionStatus: 'Accepted', judgingStatus: 'Best Director', comments: 'Excellent cinematography and narrative.', image: '/image/10.svg' },
-  { id: '2', film: 'City Lights', festival: 'SXSW Film Festival', eventDate: '05.09.2024', submissionStatus: 'Rejected', judgingStatus: '-', comments: 'Good attempt but needs stronger development.', image: '/image/10.svg' },
-  { id: '3', film: 'Silent Waves', festival: 'Cannes Short Film Corner', eventDate: '18.06.2024', submissionStatus: 'Accepted', judgingStatus: '1st Place - Drama', comments: 'Outstanding achievement in independent filmmaking.', image: '/image/10.svg' },
-  { id: '4', film: 'Moonlit Road', festival: 'Berlin Short Fest', eventDate: '12.08.2024', submissionStatus: 'Accepted', judgingStatus: 'Under Review', comments: 'Strong visuals.', image: '/image/10.svg' },
-  { id: '5', film: 'Paper Birds', festival: 'Venice Indie', eventDate: '22.07.2024', submissionStatus: 'Accepted', judgingStatus: 'Shortlist', comments: 'Great score and pacing.', image: '/image/10.svg' },
-  { id: '6', film: 'Ocean Whispers', festival: 'Toronto Indie', eventDate: '02.05.2024', submissionStatus: 'Rejected', judgingStatus: '-', comments: 'Needs editing work.', image: '/image/10.svg' },
-  { id: '7', film: 'Red Lantern', festival: 'SXSW Film Festival', eventDate: '30.09.2024', submissionStatus: 'Accepted', judgingStatus: 'Nominee', comments: 'Strong performances.', image: '/image/10.svg' },
-  { id: '8', film: 'Glass Echoes', festival: 'Tribeca Film Festival', eventDate: '14.10.2024', submissionStatus: 'Accepted', judgingStatus: 'Best Sound & Music', comments: 'Excellent sound design.', image: '/image/10.svg' },
-];
+async function fetchSubmissions(): Promise<Submission[]> {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return [];
+    const res = await fetch('/api/submissions', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    // Map API data to Submission[]
+    if (!data?.submissions) return [];
+    return data.submissions.map((item: any) => ({
+      id: item.id?.toString() ?? '',
+      film: item.film?.title ?? '-',
+      festival: item.event?.name ?? '-',
+      eventDate: item.event?.date ?? '-',
+      submissionStatus: item.submissionStatus === 'submitted' ? 'Accepted' : 'Rejected',
+      judgingStatus: item.judgingStatus || '-',
+      comments: item.comments || '',
+      image: item.film?.posterUrl || '/image/10.svg',
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export default function SubmissionsTableSection() {
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Submission | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previouslyFocused = useRef<Element | null>(null);
+
+  useEffect(() => {
+    fetchSubmissions().then((data) => {
+      setSubmissions(data);
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -51,7 +76,6 @@ export default function SubmissionsTableSection() {
   return (
     <>
       <section className="rounded-xl border border-[#EDEDED] bg-white shadow-sm w-full">
-        {/* constrained height so default view shows ~5 rows; user can scroll to see all 8 */}
         <div className="max-h-[340px] overflow-auto">
           <table className="min-w-full table-fixed text-sm">
             <thead>
@@ -65,30 +89,36 @@ export default function SubmissionsTableSection() {
             </thead>
 
             <tbody className="bg-white">
-              {SAMPLE.map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={`${idx < SAMPLE.length - 1 ? 'border-b border-[#E7E7E7]' : ''} hover:bg-[#FBFEFB] cursor-pointer`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`View submission details for ${row.film}`}
-                  onClick={() => setSelected(row)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelected(row);
-                    }
-                  }}
-                >
-                  <td className="px-6 py-4 align-top max-w-[260px] break-words">{row.film}</td>
-                  <td className="px-6 py-4 align-top text-[#4D4D4D] max-w-[240px] break-words">{row.festival}</td>
-                  <td className="px-6 py-4 align-top"><SubmissionBadge status={row.submissionStatus} /></td>
-                  <td className="px-6 py-4 align-top">
-                    {row.judgingStatus && row.judgingStatus !== '-' ? <JudgingBadge status={row.judgingStatus} /> : <span className="text-[#8A8A8A]">-</span>}
-                  </td>
-                  <td className="px-6 py-4 align-top text-sm text-[#616161] max-w-[380px] break-words">{row.comments}</td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-8 text-[#8A8A8A]">Loading...</td></tr>
+              ) : submissions.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-8 text-[#8A8A8A]">No submissions found.</td></tr>
+              ) : (
+                submissions.map((row, idx) => (
+                  <tr
+                    key={row.id}
+                    className={`${idx < submissions.length - 1 ? 'border-b border-[#E7E7E7]' : ''} hover:bg-[#FBFEFB] cursor-pointer`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View submission details for ${row.film}`}
+                    onClick={() => setSelected(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelected(row);
+                      }
+                    }}
+                  >
+                    <td className="px-6 py-4 align-top max-w-[260px] break-words">{row.film}</td>
+                    <td className="px-6 py-4 align-top text-[#4D4D4D] max-w-[240px] break-words">{row.festival}</td>
+                    <td className="px-6 py-4 align-top"><SubmissionBadge status={row.submissionStatus} /></td>
+                    <td className="px-6 py-4 align-top">
+                      {row.judgingStatus && row.judgingStatus !== '-' ? <JudgingBadge status={row.judgingStatus} /> : <span className="text-[#8A8A8A]">-</span>}
+                    </td>
+                    <td className="px-6 py-4 align-top text-sm text-[#616161] max-w-[380px] break-words">{row.comments}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

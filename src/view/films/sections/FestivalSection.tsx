@@ -5,67 +5,72 @@ import { usePaginated } from './hooks/usePaginated';
 import { Festival } from './festivals.types';
 import { formatDate } from './utils/formatDate';
 
-// Small local mock to demonstrate UI; replace / remove when backend available
-const MOCK_FESTIVALS: Festival[] = [
-  { id: '1', name: 'Sundance Film Festival', category: 'Feature Film', country: 'USA', deadline: '2025-09-15', about: '' },
-  { id: '2', name: 'Cannes Film Festival', category: 'Feature Film', country: 'France', deadline: '2025-11-01', about: '' },
-  { id: '3', name: 'Berlin International Film Festival', category: 'Feature Film', country: 'Germany', deadline: '2025-10-20', about: '' },
-  { id: '4', name: 'Toronto International Film Festival', category: 'Feature Film', country: 'Canada', deadline: '2025-08-30', about: '' },
-  { id: '5', name: 'Venice Film Festival', category: 'Feature Film', country: 'Italy', deadline: '2025-10-01', about: '' },
-  // keep a few items here for local dev; large datasets will come from backend later
-];
+
+type Event = {
+  id: string;
+  name: string;
+  category?: string;
+  country?: string;
+  deadline?: string;
+};
+
 
 export default function FestivalSection() {
   const [query, setQuery] = useState('');
   const [country, setCountry] = useState('');
   const [duration, setDuration] = useState('');
   const [sort, setSort] = useState<'deadline' | 'name'>('deadline');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // prepare hook factory
-  const { createPaginated } = usePaginated<Festival>({ initialItems: MOCK_FESTIVALS, pageSize: 12
-    /* For backend use, remove initialItems and provide fetchPage:
-       fetchPage: async (page, perPage, opts) => {
-         const q = new URLSearchParams({ page: String(page), perPage: String(perPage), ...opts }).toString();
-         const res = await fetch(`/api/festivals?${q}`);
-         const json = await res.json(); // expect { data: Festival[], total: number }
-         return json;
-       }
-    */
-  });
-
-  const { items, total, page, loading, loadMore, reset, hasMore } = createPaginated();
-
-  // derive country list from local mock (for backend we'll fetch options separately)
-  const countries = useMemo(() => Array.from(new Set(MOCK_FESTIVALS.map((f) => f.country))), []);
-
-  // When filters change, reset the paginated list.
   useEffect(() => {
-    // For local mode, filter initial dataset before reset:
-    if (MOCK_FESTIVALS.length) {
-      const filtered = MOCK_FESTIVALS.filter((f) => {
-        const q = (f.name + ' ' + f.category).toLowerCase();
-        const passQuery = q.includes(query.trim().toLowerCase());
-        const passCountry = country ? f.country === country : true;
-        const passDuration = duration ? f.category.toLowerCase().includes(duration) : true; // placeholder
-        return passQuery && passCountry && passDuration;
-      });
-
-      // re-create paginated state by calling reset with pageData via loadPage
-      // Simpler: call reset and rely on initialItems; to reflect filtered dataset we replace initialItems by replacing the hook call in future.
-      // For now we'll emulate by replacing visible items directly using a small local paging:
-      (async () => {
-        // emulate reset: set first page from filtered
-        const perPage = 12;
-        const first = filtered.slice(0, perPage);
-        // Direct DOM-safe update by calling the internal loadPage via reset wrapper:
-        reset({ page: 1, filters: { /* unused in local mode */ } });
-        // If using real backend, reset triggers fetchPage with filters (pass { query, country, duration, sort })
-      })();
-    } else {
-      // remote mode: pass filters object into reset so fetchPage can use them
-      reset({ page: 1, filters: { query, country, duration, sort } });
+    async function fetchEvents() {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/events');
+        if (!res.ok) throw new Error('Failed to fetch events');
+        const data = await res.json();
+        // Map backend fields to frontend Event type
+        const mappedEvents = Array.isArray(data.events)
+          ? data.events.map((e: any) => ({
+              id: e.id,
+              name: e.title, // backend 'title' -> frontend 'name'
+              category: Array.isArray(e.genre) ? e.genre.join(', ') : e.genre, // genre array to string
+              country: e.location, // backend 'location' -> frontend 'country'
+              deadline: e.deadline,
+              // add other fields if needed
+            }))
+          : [];
+        setEvents(mappedEvents);
+      } catch {
+        setEvents([]);
+      }
+      setLoading(false);
     }
-  }, [query, country, duration, sort]);
+    fetchEvents();
+  }, []);
+
+  // Filter and sort events for display
+  const filtered = useMemo(() => {
+    let filtered = events;
+    if (query.trim()) {
+      filtered = filtered.filter(f => (f.name + ' ' + (f.category || '')).toLowerCase().includes(query.trim().toLowerCase()));
+    }
+    if (country) {
+      filtered = filtered.filter(f => f.country === country);
+    }
+    if (duration) {
+      filtered = filtered.filter(f => (f.category || '').toLowerCase().includes(duration));
+    }
+    if (sort === 'deadline') {
+      filtered = [...filtered].sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
+    } else if (sort === 'name') {
+      filtered = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+    return filtered;
+  }, [events, query, country, duration, sort]);
+
+  const countries = useMemo(() => Array.from(new Set(events.map((f) => f.country).filter(Boolean))), [events]);
 
   return (
     <div className="p-6 w-full">
@@ -112,7 +117,7 @@ export default function FestivalSection() {
 
         {/* bottom row (separate) */}
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-[#2F623F]">Showing <span className="font-medium">{total}</span> festivals</div>
+          <div className="text-sm text-[#2F623F]">Showing <span className="font-medium">{filtered.length}</span> festivals</div>
 
           <div>
             <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="rounded-md border border-[#E6E6E6] px-3 py-2 text-sm">
@@ -125,21 +130,12 @@ export default function FestivalSection() {
 
       {/* grid */}
       <div className="mt-6">
-        <FestivalsGrid festivals={items} />
+        {loading ? (
+          <div className="text-center text-[#6F6F6F] py-12">Loading events...</div>
+        ) : (
+          <FestivalsGrid festivals={filtered as any} />
+        )}
       </div>
-
-      {/* load more */}
-      {hasMore && (
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => loadMore()}
-            disabled={loading}
-            className="rounded-md bg-[#0C4A2A] px-4 py-2 text-white"
-          >
-            {loading ? 'Loading...' : 'Load more'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
+
 import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
+import MatchingTableSection from '@/view/films/sections/MatchingTableSection';
 
 export default function FilmsPage() {
   const role = useAuthStore((s) => s.role);
@@ -15,6 +17,9 @@ export default function FilmsPage() {
         {role === 'filmmaker' && <>Welcome Filmmaker{email ? ` (${email})` : ''}.</>}
         {!role && <>Welcome. You are not signed in.</>}
       </p>
+      <div className="mt-8">
+        <MatchingTableSection />
+      </div>
     </div>
   );
 }
