@@ -73,10 +73,11 @@ export default function ReviewSubmissionsPage() {
 
   // State for API data
   const [festivals, setFestivals] = useState<any[]>([]);
-  const [selectedFestival, setSelectedFestival] = useState<string>('');
+  const [selectedFestival, setSelectedFestival] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All Status');
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   // Fetch festivals on mount
@@ -86,42 +87,68 @@ export default function ReviewSubmissionsPage() {
 
   // Fetch submissions when festival changes
   useEffect(() => {
-    if (selectedFestival && selectedFestival !== 'Select Festival') {
+    if (selectedFestival === 'all' && festivals.length > 0) {
+      fetchSubmissions();
+    } else if (selectedFestival && selectedFestival !== 'all') {
       fetchSubmissions();
     }
-  }, [selectedFestival]);
+  }, [selectedFestival, festivals]);
 
   const fetchFestivals = async () => {
     try {
       const response = await getMyEvents();
       setFestivals(response.events || []);
-      if (response.events && response.events.length > 0) {
-        setSelectedFestival(response.events[0].id.toString());
-      }
     } catch (err: any) {
       console.error('Error fetching festivals:', err);
       setError(err.message || 'Failed to load festivals');
     }
   };
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const eventId = parseInt(selectedFestival);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       
-      // Fetch submissions and winners in parallel
-      const [submissionsResponse, winnersResponse] = await Promise.all([
-        getEventSubmissions(eventId),
-        getEventWinners(eventId)
-      ]);
+      let allSubmissions: any[] = [];
+      let allWinnersData: any[] = [];
       
-      console.log('[ReviewSubmissions] Submissions Response:', submissionsResponse);
-      console.log('[ReviewSubmissions] Winners Response:', winnersResponse);
+      if (selectedFestival === 'all') {
+        // Fetch submissions and winners from all festivals
+        const allPromises = festivals.map(async (festival) => {
+          const [submissionsResponse, winnersResponse] = await Promise.all([
+            getEventSubmissions(festival.id),
+            getEventWinners(festival.id)
+          ]);
+          return { submissionsResponse, winnersResponse };
+        });
+        
+        const results = await Promise.all(allPromises);
+        
+        results.forEach(({ submissionsResponse, winnersResponse }) => {
+          allSubmissions = allSubmissions.concat(submissionsResponse.submissions || []);
+          allWinnersData = allWinnersData.concat(winnersResponse.winners || []);
+        });
+      } else {
+        // Fetch submissions and winners for specific event
+        const eventId = parseInt(selectedFestival);
+        const [submissionsResponse, winnersResponse] = await Promise.all([
+          getEventSubmissions(eventId),
+          getEventWinners(eventId)
+        ]);
+        allSubmissions = submissionsResponse.submissions || [];
+        allWinnersData = winnersResponse.winners || [];
+      }
+      
+      console.log('[ReviewSubmissions] All Submissions:', allSubmissions);
+      console.log('[ReviewSubmissions] All Winners:', allWinnersData);
       
       // Map winners to submissions by eventFilmSubmissionId
       const winnersMap = new Map();
-      if (winnersResponse.winners && Array.isArray(winnersResponse.winners)) {
-        winnersResponse.winners.forEach((winner: any) => {
+      if (allWinnersData && Array.isArray(allWinnersData)) {
+        allWinnersData.forEach((winner: any) => {
           const submissionId = winner.eventFilmSubmissionId;
           if (!winnersMap.has(submissionId)) {
             winnersMap.set(submissionId, []);
@@ -136,7 +163,7 @@ export default function ReviewSubmissionsPage() {
       }
       
       // Add awards to each submission
-      const submissionsWithAwards = (submissionsResponse.submissions || []).map((submission: any) => ({
+      const submissionsWithAwards = allSubmissions.map((submission: any) => ({
         ...submission,
         awards: winnersMap.get(submission.id) || [],
       }));
@@ -148,6 +175,7 @@ export default function ReviewSubmissionsPage() {
       setError(err.message || 'Failed to load submissions');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -157,7 +185,7 @@ export default function ReviewSubmissionsPage() {
     try {
       await updateSubmissionStatus(modal.id, status as any);
       // Refresh submissions
-      fetchSubmissions();
+      fetchSubmissions(true);
       setModal(null);
     } catch (err: any) {
       alert('Failed to update status: ' + err.message);
@@ -214,7 +242,7 @@ export default function ReviewSubmissionsPage() {
 
       await assignWinner(parseInt(selectedFestival), winnerData);
       // Refresh submissions
-      fetchSubmissions();
+      fetchSubmissions(true);
       setAwardModal(null);
       setSelectedAward('');
       setFilmCrewMembers([]);
@@ -224,7 +252,11 @@ export default function ReviewSubmissionsPage() {
     }
   };
 
-  const handleDeleteAward = async (winnerId: number) => {
+  const handleDeleteAward = async (winnerId: number, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
     if (!selectedFestival) return;
     
     if (!confirm('Are you sure you want to remove this award?')) {
@@ -234,7 +266,7 @@ export default function ReviewSubmissionsPage() {
     try {
       await deleteWinner(parseInt(selectedFestival), winnerId);
       // Refresh submissions
-      fetchSubmissions();
+      fetchSubmissions(true);
     } catch (err: any) {
       alert('Failed to delete award: ' + err.message);
     }
@@ -262,7 +294,7 @@ export default function ReviewSubmissionsPage() {
             value={selectedFestival}
             onChange={(e) => setSelectedFestival(e.target.value)}
           >
-            <option value="">Select Festival</option>
+            <option value="all">All Events</option>
             {festivals.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.title}
@@ -297,7 +329,15 @@ export default function ReviewSubmissionsPage() {
         </div>
       )}
       {/* Table */}
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-6 relative">
+        {refreshing && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-xl">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-900"></div>
+              <span className="text-sm text-gray-700 font-medium">Refreshing...</span>
+            </div>
+          </div>
+        )}
         <table className="min-w-full text-left border-separate border-spacing-y-2">
           <thead>
             <tr className="text-gray-500 text-sm">
@@ -357,7 +397,8 @@ export default function ReviewSubmissionsPage() {
                               )}
                             </span>
                             <button
-                              onClick={() => handleDeleteAward(award.id)}
+                              type="button"
+                              onClick={(e) => handleDeleteAward(award.id, e)}
                               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
                               title="Remove award"
                             >
@@ -388,7 +429,7 @@ export default function ReviewSubmissionsPage() {
             ) : !loading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  {selectedFestival ? 'No submissions yet for this festival' : 'Please select a festival'}
+                  {selectedFestival === 'all' ? 'No submissions yet across all events' : selectedFestival ? 'No submissions yet for this festival' : 'Please select a festival'}
                 </td>
               </tr>
             ) : null}
