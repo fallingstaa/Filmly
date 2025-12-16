@@ -216,7 +216,7 @@ export default function ReviewSubmissionsPage() {
   };
 
   const handleAssignAward = async () => {
-    if (!awardModal || !selectedFestival) return;
+    if (!awardModal) return;
 
     if (!selectedAward) {
       alert('Please select an award');
@@ -230,6 +230,13 @@ export default function ReviewSubmissionsPage() {
       return;
     }
 
+    // Get the event ID from the submission, not from the selected filter
+    const eventId = awardModal.eventId;
+    if (!eventId) {
+      alert('Unable to determine event for this submission');
+      return;
+    }
+
     try {
       const winnerData: any = {
         eventFilmSubmissionId: awardModal.id,
@@ -240,7 +247,7 @@ export default function ReviewSubmissionsPage() {
         winnerData.filmCrewId = selectedCrewId;
       }
 
-      await assignWinner(parseInt(selectedFestival), winnerData);
+      await assignWinner(eventId, winnerData);
       // Refresh submissions
       fetchSubmissions(true);
       setAwardModal(null);
@@ -252,19 +259,17 @@ export default function ReviewSubmissionsPage() {
     }
   };
 
-  const handleDeleteAward = async (winnerId: number, event?: React.MouseEvent) => {
+  const handleDeleteAward = async (winnerId: number, eventId: number, event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
     }
-    
-    if (!selectedFestival) return;
     
     if (!confirm('Are you sure you want to remove this award?')) {
       return;
     }
 
     try {
-      await deleteWinner(parseInt(selectedFestival), winnerId);
+      await deleteWinner(eventId, winnerId);
       // Refresh submissions
       fetchSubmissions(true);
     } catch (err: any) {
@@ -398,7 +403,7 @@ export default function ReviewSubmissionsPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteAward(award.id, e)}
+                              onClick={(e) => handleDeleteAward(award.id, s.eventId, e)}
                               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
                               title="Remove award"
                             >
