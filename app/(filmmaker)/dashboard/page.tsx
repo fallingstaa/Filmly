@@ -14,7 +14,7 @@ export default function FilmmakerDashboardPage() {
       setError('');
       try {
         const accessToken = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/filmmaker/dashboard`, {
+        const res = await fetch('/api/films', {
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         });
         if (!res.ok) throw new Error('Failed to load dashboard');

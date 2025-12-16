@@ -100,7 +100,7 @@ export default function SubmissionsTableSection() {
 
   return (
     <>
-      <section className="rounded-xl border border-[#EDEDED] bg-white shadow-sm w-full">
+      <section className="rounded-xl border border-[#EDEDED] bg-white shadow-sm w-full p-2 md:p-4">
         <div className="max-h-[340px] overflow-auto">
           <table className="min-w-full table-fixed text-sm">
             <thead>

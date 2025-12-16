@@ -16,7 +16,7 @@ const nav: NavItem[] = [
   { href: '/films/submissions', label: 'My Submission', icon: PlusCircleIcon },
   { href: '/films/matching', label: 'Project and Ai matching', icon: TargetIcon },
   { href: '/films/festival', label: 'Festival', icon: DatabaseIcon },
-  { href: '/films/billing', label: 'Subscription', icon: CardIcon }, // <-- updated path
+  { href: '/films/billing', label: 'Subscription', icon: CardIcon },
 ];
 
 export default function FilmmakerLayout({ children }: { children: React.ReactNode }) {

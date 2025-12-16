@@ -73,11 +73,12 @@ export default function FestivalSection() {
   const countries = useMemo(() => Array.from(new Set(events.map((f) => f.country).filter(Boolean))), [events]);
 
   return (
+
     <div className="p-6 w-full">
-      <div className="mt-4">
+      <section className="rounded-xl border border-[#EDEDED] bg-white px-4 py-4 shadow-sm md:px-6 md:py-5 w-full mb-4 mt-4">
         <h1 className="text-2xl font-semibold text-[#00441B]">Festival</h1>
         <p className="mt-2 text-sm text-[#6F6F6F]">Explore thousands of film festivals worldwide</p>
-      </div>
+      </section>
 
       <div className="mt-6 rounded-lg bg-white p-4 shadow-sm border border-[#F0F0F0]">
         {/* top row */}

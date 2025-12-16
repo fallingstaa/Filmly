@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 const GENRES = [
   'Comedy',
@@ -160,17 +161,95 @@ export default function AddFilmForm({ festivalId, editId }: { festivalId?: strin
   }
 
   // --- Festival Submission Logic ---
-  function submitToFestival() {
-    /**
-     * For testing: No validation, just allow submit.
-     * When integrating with backend, add validation and POST logic here.
-     */
+  async function submitToFestival() {
+    if (!festivalId) return;
+    if (!title || !country || !duration || !genre || !language) {
+      alert('Please fill in all required fields.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      if (!token) throw new Error('Not authenticated');
+
+      // 1. Upload video to Supabase Storage
+      let s3_link = '';
+      if (filmFile) {
+        // Use a unique path: e.g., films/{gmail or user}/{title}/{timestamp}_{filename}
+        const userFolder = gmail?.split('@')[0] || 'user';
+        const fileExt = filmFile.name.split('.').pop();
+        const filePath = `film-videos/${userFolder}/${title}/${Date.now()}_${title.replace(/\s+/g, '_')}.${fileExt}`;
+        const { data, error } = await supabase.storage.from('film-videos').upload(filePath, filmFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        if (error) throw new Error('Failed to upload video: ' + error.message);
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage.from('film-videos').getPublicUrl(filePath);
+        s3_link = publicUrlData?.publicUrl || '';
+        if (!s3_link) throw new Error('Failed to get public video URL');
+      }
+
+      // 2. Upload subtitle file if present
+      let subtitle_file = '';
+      if (subFile) {
+        const userFolder = gmail?.split('@')[0] || 'user';
+        const fileExt = subFile.name.split('.').pop();
+        const filePath = `subtitles/${userFolder}/${title}/${Date.now()}_${title.replace(/\s+/g, '_')}.${fileExt}`;
+        const { data, error } = await supabase.storage.from('film-videos').upload(filePath, subFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        if (error) throw new Error('Failed to upload subtitle: ' + error.message);
+        const { data: publicUrlData } = supabase.storage.from('film-videos').getPublicUrl(filePath);
+        subtitle_file = publicUrlData?.publicUrl || '';
+      }
+
+
+      // 3. Create film (send s3_link and subtitle_file as URLs via FormData)
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('country', country);
+      formData.append('duration', String(duration));
+      formData.append('genre', JSON.stringify([genre]));
+      formData.append('language', language);
+      formData.append('theme', theme);
+      formData.append('description', synopsis);
+      formData.append('gmail', gmail);
+      formData.append('s3_link', s3_link);
+      formData.append('subtitle_file', subtitle_file);
+
+      const filmRes = await fetch('/api/films', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const filmData = await filmRes.json();
+      if (!filmRes.ok) throw new Error(filmData.message || 'Failed to create film');
+      const filmId = filmData.film?.id || filmData.filmId || filmData.id;
+      if (!filmId) throw new Error('Film ID not returned');
+
+      // 4. Submit film to festival
+      const subRes = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ eventId: festivalId, filmId }),
+      });
+      const subData = await subRes.json();
+      if (!subRes.ok) throw new Error(subData.message || 'Failed to submit film to festival');
+
       setLoading(false);
-      alert('Film submitted to festival! (test mode, no validation)');
+      alert('Film submitted to festival successfully!');
       window.location.href = `/films/submissions`;
-    }, 1200);
+    } catch (err: any) {
+      setLoading(false);
+      alert(err.message || 'Submission failed');
+    }
   }
 
   function cancel() {
@@ -178,6 +257,8 @@ export default function AddFilmForm({ festivalId, editId }: { festivalId?: strin
       if (typeof window !== 'undefined') window.history.back();
     }
   }
+
+
 
   return (
     <div className="max-w-6xl mx-auto p-6 relative">

@@ -1,99 +1,19 @@
-import React from 'react';
-
-type PastSubmission = {
-  film: string;
-  festival: string;
-  status: 'Accepted' | 'Rejected';
-  awards: string | '-';
-  comments: string;
-};
-
-const rows: PastSubmission[] = [
-  {
-    film: 'The Last Dawn',
-    festival: 'Tribeca Film Festival',
-    status: 'Accepted',
-    awards: 'Best Director',
-    comments: 'Excellent cinematography and narrative.',
-  },
-  {
-    film: 'City Lights',
-    festival: 'SXSW Film Festival',
-    status: 'Rejected',
-    awards: '-',
-    comments: 'Good attempt but needs stronger character development.',
-  },
-  {
-    film: 'The Last Dawn',
-    festival: 'Cannes Short Film Corner',
-    status: 'Accepted',
-    awards: '1st Place - Drama',
-    comments: 'Outstanding achievement in independent filmmaking.',
-  },
-];
 
 export default function PastSubmissionsSection() {
   return (
-    <section className="mt-6 rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-[#00441B]">Past Submissions</h3>
-
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-full border-collapse">
-          <thead>
-            <tr className="text-xs text-[#4D4D4D]">
-              <th className="px-4 py-3 text-left font-semibold">Film</th>
-              <th className="px-4 py-3 text-left font-semibold">Festival</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-              <th className="px-4 py-3 text-left font-semibold">Awards</th>
-              <th className="px-4 py-3 text-left font-semibold">Comments</th>
-            </tr>
-            <tr>
-              <td colSpan={5} className="h-[1px] bg-[#EFEFEF]" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="text-sm text-[#1A1A1A]">
-                <td className="px-4 py-4 align-middle">{r.film}</td>
-                <td className="px-4 py-4 align-middle text-[#4D4D4D]">{r.festival}</td>
-                <td className="px-4 py-4 align-middle">
-                  <StatusBadge status={r.status} />
-                </td>
-                <td className="px-4 py-4 align-middle">
-                  <AwardPill value={r.awards} />
-                </td>
-                <td className="px-4 py-4 align-middle text-[#4D4D4D]">{r.comments}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <section className="mt-6 rounded-2xl border border-[#EDEDED] bg-white p-8 shadow-sm flex flex-col items-center justify-center min-h-[220px]">
+      <div className="flex flex-col items-center justify-center">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="mb-2" aria-hidden="true">
+          <circle cx="20" cy="20" r="20" fill="#D1FAE5" />
+          <path d="M13 27V13a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H14a1 1 0 0 1-1-1z" fill="#10B981" />
+          <rect x="16" y="17" width="8" height="2" rx="1" fill="white" />
+          <rect x="16" y="21" width="8" height="2" rx="1" fill="white" />
+        </svg>
+        <span className="text-2xl font-bold text-[#00441B] mb-2">Keep Creating</span>
+        <p className="text-gray-600 text-center max-w-md mt-2">
+          Every story deserves to be told. Whether you’re working on your next masterpiece or taking a creative break, remember: the journey is as important as the destination.
+        </p>
       </div>
     </section>
-  );
-}
-
-function StatusBadge({ status }: { status: PastSubmission['status'] }) {
-  if (status === 'Accepted') {
-    return (
-      <span className="inline-flex items-center rounded-md bg-[#22C55E] px-3 py-1.5 text-xs font-semibold text-white">
-        Accepted
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-md bg-[#EF4444] px-3 py-1.5 text-xs font-semibold text-white">
-      Rejected
-    </span>
-  );
-}
-
-function AwardPill({ value }: { value: string | '-' }) {
-  if (value === '-' || !value) {
-    return <span className="text-[#6F6F6F]">-</span>;
-  }
-  return (
-    <span className="inline-flex items-center rounded-md bg-[#A78BFA] px-3 py-1.5 text-xs font-semibold text-white">
-      {value}
-    </span>
   );
 }

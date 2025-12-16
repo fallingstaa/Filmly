@@ -1,3 +1,38 @@
+// POST /api/submissions
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+  if (!authHeader) {
+    console.error('Missing Authorization header');
+    return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+  }
+  try {
+    const body = await request.json();
+    console.log('Submitting to festival:', body);
+    // Proxy to backend API (replace with your backend URL)
+    const BACKEND_URL = 'https://filmly-backend.vercel.app/api/submissions';
+    const backendRes = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(body),
+    });
+    let data;
+    const contentType = backendRes.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      data = await backendRes.json();
+    } else {
+      data = await backendRes.text();
+    }
+    console.log('Backend response status:', backendRes.status);
+    console.log('Backend response data:', data);
+    return NextResponse.json(data, { status: backendRes.status });
+  } catch (e: any) {
+    console.error('Error submitting to festival:', e);
+    return NextResponse.json({ error: e.message || 'Failed to submit film to festival' }, { status: 500 });
+  }
+}
 // route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
