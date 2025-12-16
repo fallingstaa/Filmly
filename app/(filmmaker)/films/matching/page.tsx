@@ -7,18 +7,18 @@ import MatchingResultsSection from '../../../../src/view/films/sections/Matching
 
 export default function MatchingPage() {
   return (
-    <div className="p-6 w-full">
+    <div className="p-6 w-full space-y-6">
       <MatchingHeaderSection />
 
-      <div className="mt-4">
-        <h3 className="text-base font-semibold text-[#00441B]">Project & AI Matching</h3>
-      </div>
-
-      <div className="mt-4">
+      <div>
+        <h3 className="text-base font-semibold text-[#00441B] mb-2">Your Projects</h3>
+        <p className="text-sm text-[#6F6F6F] mb-4">
+          Select a film and click "AI matching" to find festivals that match your project's theme, language, and other criteria.
+        </p>
         <MatchingTableSection />
       </div>
 
-      <div className="mt-4">
+      <div>
         <MatchingResultsSection />
       </div>
     </div>

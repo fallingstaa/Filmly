@@ -93,35 +93,34 @@ export default function AddFilmForm({ festivalId, editId }: { festivalId?: strin
   }
 
   // --- AI Matching Submission Logic ---
-  function submitToAi() {
+  async function submitToAi() {
     /**
      * AI Matching Submission:
      * - Triggered ONLY from "Add Film" in Project and AI Matching tab.
-     * - When integrating with backend:
-     *   - POST film data to backend for AI matching.
-     *   - Backend returns matching festivals/projects.
-     *   - Redirect user to matching results page.
+     * - Calls backend AI matching API with film theme and language.
+     * - Backend returns matching festivals/projects.
+     * - Redirect user to matching results page.
      */
-    const hasAny =
-      Boolean(title) ||
-      Boolean(country) ||
-      duration !== '' ||
-      Boolean(genre) ||
-      Boolean(language) ||
-      Boolean(theme) ||
-      Boolean(synopsis);
 
-    if (!hasAny) {
-      alert('Please enter at least one field (title, theme, file, etc.) before submitting to AI.');
+    // Validate required fields for AI matching
+    if (!theme && !synopsis) {
+      alert('Please enter a theme or synopsis for AI matching.');
+      return;
+    }
+    if (!language) {
+      alert('Please select a language for AI matching.');
+      return;
+    }
+    if (!title) {
+      alert('Please enter a film title.');
       return;
     }
 
     if (loading) return;
     setLoading(true);
 
-    const delay = 2000 + Math.floor(Math.random() * 3000); // 2-5s
-    setTimeout(() => {
-      // create temporary film id and store film data in localStorage
+    try {
+      // Create temporary film id and store film data in localStorage
       const id = `tmp-${Date.now()}`;
       const film = {
         id,
@@ -132,6 +131,7 @@ export default function AddFilmForm({ festivalId, editId }: { festivalId?: strin
         language,
         theme,
         synopsis,
+        description: synopsis || theme,
         createdAt: new Date().toISOString(),
       };
 
@@ -139,25 +139,70 @@ export default function AddFilmForm({ festivalId, editId }: { festivalId?: strin
       stored.push(film);
       localStorage.setItem('mock_films', JSON.stringify(stored));
 
-      // create simple mock matches for the new film
-      const mockMatches = Array.from({ length: 8 }).map((_, i) => ({
-        id: `${id}-m${i + 1}`,
-        festival: `Mock Festival ${i + 1}`,
-        score: Math.max(60, Math.floor(90 - i * 3 + Math.random() * 10)),
-        type: i % 2 === 0 ? 'Feature Film' : 'Short Film',
-        country: ['USA', 'UK', 'France', 'Italy'][i % 4],
-        deadline: `Dec ${10 + i}, 2025`,
+      // Call the real AI matching API
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const filmTheme = theme || synopsis || '';
+      const filmLanguage = language || 'English';
+
+      const url = `${baseUrl}/api/ai/match-festivals?theme=${encodeURIComponent(filmTheme)}&language=${encodeURIComponent(filmLanguage)}`;
+
+      console.log('Calling AI matching API:', url);
+
+      const response = await fetch(url);
+
+      console.log('AI API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI API error response:', errorText);
+        throw new Error(`AI matching failed: ${response.statusText}`);
+      }
+
+      const responseText = await response.text();
+      console.log('AI API raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('AI matching results (parsed):', data);
+      } catch (parseError) {
+        console.error('Failed to parse AI API response as JSON:', parseError);
+        throw new Error('Invalid response from AI API - not valid JSON');
+      }
+
+      // Check if backend returned an error in the response
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Check if we got any matches
+      if (!data.matches || data.matches.length === 0) {
+        console.warn('No matches returned from AI API');
+        alert(`AI matching completed but found no matching festivals. This might mean:\n- No festivals in database with open deadlines\n- Your theme/language doesn't match any festivals\n\nTry browsing festivals manually at /films/festival`);
+      }
+
+      // Store results in sessionStorage for the results page
+      sessionStorage.setItem('ai_matching_results', JSON.stringify({
+        filmId: id,
+        filmTitle: film.title,
+        results: data.matches || [],
+        userInput: data.userInput || { theme: filmTheme, language: filmLanguage },
+        totalFestivals: data.totalFestivals || 0,
+        compatibleMatches: data.compatibleMatches || 0,
       }));
-      localStorage.setItem(`mock_matches_${id}`, JSON.stringify(mockMatches));
 
       setLoading(false);
 
-      // navigate to the AI matching results screen with filmId/title in query
+      // Navigate to the AI matching results screen with filmId/title in query
       const params = new URLSearchParams();
       params.set('filmId', id);
       params.set('title', film.title);
       window.location.href = `/films/matching?${params.toString()}`;
-    }, delay);
+    } catch (error) {
+      console.error('AI matching error:', error);
+      setLoading(false);
+      alert(`Failed to perform AI matching: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   // --- Festival Submission Logic ---

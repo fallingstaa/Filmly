@@ -4,12 +4,15 @@ import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Match = {
-  id: string;
-  festival: string;
-  score: number;
-  type: string;
-  country: string;
-  deadline: string;
+  id?: string;
+  festival?: string;
+  score?: number;
+  type?: string;
+  country?: string;
+  deadline?: string;
+  matchReasons?: string[];
+  daysUntilDeadline?: number;
+  eventId?: number;
 };
 
 type Props = {
@@ -48,8 +51,11 @@ export default function MatchingResultsGridSection({
   const displayColumns = 5; // exactly 5 columns per row
   const slotsPerPage = displayColumns * ROWS;
 
-  function openFestivalDetail(festivalId: string) {
-    router.push(`/films/festival/${festivalId}`);
+  function openFestivalDetail(match: Match) {
+    const festivalId = match.eventId || match.id;
+    if (festivalId) {
+      router.push(`/films/festival/${festivalId}`);
+    }
   }
 
   function goPrev() {
@@ -141,21 +147,39 @@ export default function MatchingResultsGridSection({
               <div className="mt-4 space-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <span className="text-[#065F46]">📍</span>
-                  <span className="truncate">{m.country}</span>
+                  <span className="truncate">{m.country || 'N/A'}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-[#065F46]">📅</span>
-                  <span className="truncate">Deadline: {m.deadline}</span>
+                  <span className="truncate">
+                    {m.daysUntilDeadline !== undefined
+                      ? `${m.daysUntilDeadline} days left`
+                      : `Deadline: ${m.deadline || 'TBD'}`}
+                  </span>
                 </div>
+
+                {m.matchReasons && m.matchReasons.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="text-xs text-[#065F46] font-medium">Match Reasons:</div>
+                    <ul className="mt-1 space-y-1">
+                      {m.matchReasons.slice(0, 2).map((reason, idx) => (
+                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-1">
+                          <span className="text-[#065F46] mt-0.5">•</span>
+                          <span className="line-clamp-2">{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="mt-4">
               <button
-                onClick={() => openFestivalDetail(m.id)}
+                onClick={() => openFestivalDetail(m)}
                 className="w-full bg-[#0C4A2A] text-white py-2 rounded-md text-sm font-medium hover:opacity-95"
-                aria-label={`View ${m.festival} details`}
+                aria-label={`View ${m.festival || 'festival'} details`}
               >
                 View Details
               </button>
