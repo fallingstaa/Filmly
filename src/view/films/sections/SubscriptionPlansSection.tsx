@@ -15,6 +15,7 @@ const FEATURES = [
 ];
 
 export default function SubscriptionPlansSection({ billing }: { billing: 'monthly' | 'yearly' }) {
+  console.log("subscription active");
   const router = useRouter();
 
   return (
@@ -23,6 +24,7 @@ export default function SubscriptionPlansSection({ billing }: { billing: 'monthl
         <h3 className="text-lg text-[#065F46] font-medium">Free</h3>
         <div className="mt-2 text-sm text-gray-600">$0 /month</div>
         <p className="mt-4 text-sm text-gray-600">Perfect for getting started</p>
+        
 
         <ul className="mt-6 space-y-2">
           {FEATURES.slice(0, 5).map((f) => (
