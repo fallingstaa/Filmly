@@ -65,7 +65,7 @@ export default function SubscriptionPlansSection({ billing }: { billing: 'monthl
 
         <div className="mt-6">
           <button
-            onClick={() => router.push('/films/billing/checkout')}
+            onClick={() => router.push('/organizer/subscription/select-payment')}
             className="w-full rounded-md bg-[#0C4A2A] py-2 text-sm text-white"
           >
             Upgrade to Pro
