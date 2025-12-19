@@ -1,74 +1,8 @@
-// SubmissionsTableSection.tsx
-
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-
-type Submission = {
-  id: string;
-  film: string;
-  festival: string;
-  eventDate?: string;
-  submissionStatus: 'Accepted' | 'Rejected';
-  judgingStatus?: 'Under Review' | 'Shortlist' | 'Nominee' | '';
-  comments?: string;
-  image?: string;
-  eventId?: string;
-  filmId?: string;
-  awards?: string[]; // real awards
-};
-
-async function fetchSubmissions(): Promise<Submission[]> {
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    if (!token) return [];
-    const res = await fetch('/api/submissions', {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    // Map backend fields to Submission type (snake_case from API)
-    const mapSubmission = (item: any): Submission => {
-      let submissionStatus: 'Accepted' | 'Rejected' = 'Rejected';
-      let judgingStatus: 'Under Review' | 'Shortlist' | 'Nominee' | '' = '';
-      // Only 'accept' and 'reject' are Submission Status
-      if (item.submission_status === 'accept') {
-        submissionStatus = 'Accepted';
-      } else if (item.submission_status === 'reject') {
-        submissionStatus = 'Rejected';
-      } else if (item.submission_status === 'under_review') {
-        submissionStatus = 'Accepted';
-        judgingStatus = 'Under Review';
-      } else if (item.submission_status === 'shortlist') {
-        submissionStatus = 'Accepted';
-        judgingStatus = 'Shortlist';
-      } else if (item.submission_status === 'nominee') {
-        submissionStatus = 'Accepted';
-        judgingStatus = 'Nominee';
-      }
-      return {
-        id: item.id?.toString() ?? '',
-        film: item.film?.title ?? '-',
-        festival: item.event?.title ?? '-',
-        eventDate: item.event?.deadline ?? '-',
-        submissionStatus,
-        judgingStatus,
-        comments: item.comments || '',
-        image: item.film?.filmPosterUrl || '/image/10.svg',
-        eventId: item.event_id?.toString() ?? '',
-        filmId: item.film_id?.toString() ?? '',
-      };
-    };
-    const allSubs = Array.isArray(data.submissions)
-      ? data.submissions.map(mapSubmission)
-      : [];
-    return allSubs;
-  } catch (e) {
-    console.error('Error fetching submissions:', e);
-    return [];
-  }
-}
+// We import the type from the parent to fix the build errors
+import { Submission } from './SubmissionsPageWithFilters';
 
 type SubmissionsTableSectionProps = {
   submissions: Submission[];
@@ -76,31 +10,33 @@ type SubmissionsTableSectionProps = {
   onAwardsMapChange?: (awardsMap: Record<string, string[]>) => void;
 };
 
-function getTotalAwards(awardsMap: Record<string, string[]>): number {
-  return Object.values(awardsMap).reduce((sum, awards) => sum + (awards?.length || 0), 0);
-}
-
-export default function SubmissionsTableSection({ submissions, loading, onAwardsMapChange }: SubmissionsTableSectionProps) {
+export default function SubmissionsTableSection({ 
+  submissions, 
+  loading, 
+  onAwardsMapChange 
+}: SubmissionsTableSectionProps) {
   const [selected, setSelected] = useState<Submission | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previouslyFocused = useRef<Element | null>(null);
-  const [awardsMap, setAwardsMap] = useState<Record<string, string[]>>({}); // key: submission.id, value: awards
+  const [awardsMap, setAwardsMap] = useState<Record<string, string[]>>({});
 
   // Fetch awards for all unique eventIds in submissions
   useEffect(() => {
-    // Debug: log eventId and filmId for each submission
     if (submissions && submissions.length > 0) {
       console.log('Submissions eventId/filmId mapping:');
       submissions.forEach((s) => {
         console.log(`Submission id=${s.id}, eventId=${s.eventId}, filmId=${s.filmId}`);
       });
     }
+
     async function fetchAwards() {
       const eventFilmPairs = submissions
         .filter(s => s.eventId && s.filmId)
         .map(s => ({ eventId: s.eventId, filmId: s.filmId, submissionId: s.id }));
+      
       const uniqueEvents = Array.from(new Set(eventFilmPairs.map(p => p.eventId)));
       const newAwardsMap: Record<string, string[]> = {};
+
       for (const eventId of uniqueEvents) {
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
@@ -108,35 +44,35 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
             console.warn('[SubmissionsTableSection] No token, skipping event', eventId);
             continue;
           }
+
           const url = `https://filmly-backend.vercel.app/api/events/${eventId}/winners`;
           console.log('[SubmissionsTableSection] Fetching awards for eventId:', eventId, 'URL:', url);
+          
           const res = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` },
             cache: 'no-store',
           });
+
           console.log(`[SubmissionsTableSection] Response status for eventId ${eventId}:`, res.status);
+          
           if (res.status === 404) {
-            console.warn(`[SubmissionsTableSection] No winners found for eventId=${eventId} (404)`);
             eventFilmPairs.filter(p => p.eventId === eventId).forEach(pair => {
               newAwardsMap[pair.submissionId] = [];
             });
             continue;
           }
-          if (!res.ok) {
-            console.warn(`[SubmissionsTableSection] Error fetching winners for eventId=${eventId} (status ${res.status})`);
-            continue;
-          }
+
+          if (!res.ok) continue;
+
           const data = await res.json();
           console.log(`[SubmissionsTableSection] Fetched winners for eventId=${eventId}:`, data.winners);
+          
           for (const pair of eventFilmPairs.filter(p => p.eventId === eventId)) {
             const awards = Array.isArray(data.winners)
               ? data.winners
                   .filter((w: any) => {
                     const isUserFilm = String(w.filmId) === String(pair.filmId);
                     const hasCategory = typeof w.category === 'string' && w.category.trim() !== '';
-                    if (isUserFilm && hasCategory) {
-                      console.log(`[SubmissionsTableSection] User award found: eventId=${eventId}, filmId=${w.filmId}, category=${w.category}`);
-                    }
                     return isUserFilm && hasCategory;
                   })
                   .map((w: any) => w.category || '-')
@@ -144,17 +80,19 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
             newAwardsMap[pair.submissionId] = awards.length > 0 ? awards : [];
           }
         } catch (e) {
-          console.error('[SubmissionsTableSection] Error fetching winners for eventId', eventId, e);
+          console.error('[SubmissionsTableSection] Error fetching winners', e);
         }
       }
       setAwardsMap(newAwardsMap);
       if (onAwardsMapChange) onAwardsMapChange(newAwardsMap);
     }
+
     if (submissions && submissions.length > 0) {
       fetchAwards();
     }
-  }, [submissions]);
+  }, [submissions, onAwardsMapChange]);
 
+  // Modal accessibility / keyboard logic
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && selected) setSelected(null);
@@ -202,7 +140,6 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
                     className={`${idx < submissions.length - 1 ? 'border-b border-[#E7E7E7]' : ''} hover:bg-[#FBFEFB] cursor-pointer`}
                     role="button"
                     tabIndex={0}
-                    aria-label={`View submission details for ${row.film}`}
                     onClick={() => setSelected(row)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -215,18 +152,17 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
                     <td className="px-6 py-4 align-top text-[#4D4D4D] max-w-[240px] break-words">{row.festival}</td>
                     <td className="px-6 py-4 align-top"><SubmissionBadge status={row.submissionStatus} /></td>
                     <td className="px-6 py-4 align-top">
-                      {row.submissionStatus === 'Accepted' && row.judgingStatus && row.judgingStatus !== ''
-                        ? <JudgingBadge status={row.judgingStatus} />
-                        : <span className="text-[#8A8A8A]">-</span>}
+                      {row.submissionStatus === 'Accepted' && row.judgingStatus && row.judgingStatus !== '' && row.judgingStatus !== '-' ? (
+                        <JudgingBadge status={row.judgingStatus} />
+                      ) : (
+                        <span className="text-[#8A8A8A]">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 align-top">
                       {awardsMap[row.id] && awardsMap[row.id].length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {awardsMap[row.id].map((award, i) => (
-                            <span
-                              key={i}
-                              className="inline-block bg-[#E9F5EE] text-[#43B26C] px-2 py-1 rounded text-xs font-medium border border-[#C7E8D7] mr-1 mb-1"
-                            >
+                            <span key={i} className="inline-block bg-[#E9F5EE] text-[#43B26C] px-2 py-1 rounded text-xs font-medium border border-[#C7E8D7] mr-1 mb-1">
                               {award}
                             </span>
                           ))}
@@ -244,56 +180,44 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
         </div>
       </section>
 
-      {/* Modal centered in middle of screen */}
+      {/* Modal - The full details section you had before */}
       {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="submission-detail-title"
-        >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200" onClick={() => setSelected(null)} aria-hidden="true" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelected(null)} />
           <div className="relative z-10 w-full max-w-3xl">
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#EDEDED] flex flex-col md:flex-row">
-              {/* Poster/image section */}
               <div className="w-full md:w-1/3 bg-gradient-to-b from-[#F4F7F6] to-white flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#F0F0F0]">
                 <img
-                  src={selected.image ?? '/image/10.svg'}
+                  src={selected.image || '/image/10.svg'}
                   alt={`${selected.film} poster`}
                   className="max-h-[320px] w-auto rounded-lg shadow-md object-contain border border-[#EDEDED] bg-white"
                 />
               </div>
-              {/* Details section */}
               <div className="flex-1 flex flex-col p-6 md:p-8 relative">
                 <button
                   ref={closeButtonRef}
                   onClick={() => setSelected(null)}
-                  aria-label="Close submission detail"
-                  className="absolute top-4 right-4 rounded-full w-9 h-9 flex items-center justify-center text-xl text-[#4B4B4B] hover:bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#43B26C]"
+                  className="absolute top-4 right-4 rounded-full w-9 h-9 flex items-center justify-center text-xl text-[#4B4B4B] hover:bg-[#F4F4F4]"
                 >
                   ×
                 </button>
-                <h3 id="submission-detail-title" className="text-2xl font-bold text-[#0B3F20] mb-2">{selected.film}</h3>
+                <h3 className="text-2xl font-bold text-[#0B3F20] mb-2">{selected.film}</h3>
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="inline-block bg-[#F4F7F6] text-[#2D6A4F] px-3 py-1 rounded-full text-xs font-semibold">{selected.festival}</span>
-                  <span className="inline-block bg-[#F4F7F6] text-[#616161] px-3 py-1 rounded-full text-xs">{selected.eventDate ?? '-'}</span>
-                  {selected.judgingStatus && selected.judgingStatus !== '-' ? (
-                    <JudgingBadge status={selected.judgingStatus} />
-                  ) : (
-                    <span className="inline-block bg-[#F4F7F6] text-[#8A8A8A] px-3 py-1 rounded-full text-xs">No Judging Status</span>
-                  )}
+                  <span className="inline-block bg-[#F4F7F6] text-[#616161] px-3 py-1 rounded-full text-xs">{selected.eventDate || '-'}</span>
+                  {selected.judgingStatus && selected.judgingStatus !== '-' && <JudgingBadge status={selected.judgingStatus} />}
                 </div>
                 <div className="mb-4">
                   <div className="text-sm font-semibold text-[#2D6A4F] mb-1">Award(s)</div>
-                  <div className="text-base text-[#222] min-h-[24px]">
-                    {awardsMap[selected.id] && awardsMap[selected.id].length > 0
-                      ? awardsMap[selected.id].map((award, i) => (
-                          <span key={i} className="inline-block bg-[#E9F5EE] text-[#43B26C] px-2 py-1 rounded mr-2 mb-1 text-xs font-medium border border-[#C7E8D7]">{award}</span>
-                        ))
-                      : <span className="text-[#8A8A8A]">-</span>}
+                  <div className="flex flex-wrap gap-2 min-h-[24px]">
+                    {awardsMap[selected.id] && awardsMap[selected.id].length > 0 ? (
+                      awardsMap[selected.id].map((award, i) => (
+                        <span key={i} className="inline-block bg-[#E9F5EE] text-[#43B26C] px-2 py-1 rounded text-xs font-medium border border-[#C7E8D7]">{award}</span>
+                      ))
+                    ) : <span className="text-[#8A8A8A]">-</span>}
                   </div>
                 </div>
-                <div className="mb-2">
+                <div>
                   <div className="text-sm font-semibold text-[#616161] mb-1">Comments</div>
                   <div className="text-base text-[#444] whitespace-pre-wrap min-h-[24px]">{selected.comments || <span className="text-[#8A8A8A]">No comments</span>}</div>
                 </div>
@@ -306,15 +230,18 @@ export default function SubmissionsTableSection({ submissions, loading, onAwards
   );
 }
 
+// Badge Components
 function SubmissionBadge({ status }: { status: 'Accepted' | 'Rejected' }) {
-  if (status === 'Accepted') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#43B26C] text-white">Accept</span>;
-  return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#E14C4C] text-white">Reject</span>;
+  const color = status === 'Accepted' ? 'bg-[#43B26C]' : 'bg-[#E14C4C]';
+  return <span className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${color} text-white`}>{status === 'Accepted' ? 'Accept' : 'Reject'}</span>;
 }
 
 function JudgingBadge({ status }: { status: Submission['judgingStatus'] }) {
-  if (!status) return null;
-  if (status === 'Under Review') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#4285F4] text-white">Under Review</span>;
-  if (status === 'Shortlist') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#FBC02D] text-white">Shortlist</span>;
-  if (status === 'Nominee') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#7E57C2] text-white">Nominee</span>;
-  return null;
+  if (!status || status === '' || status === '-') return null;
+  const colors: Record<string, string> = {
+    'Under Review': 'bg-[#4285F4]',
+    'Shortlist': 'bg-[#FBC02D]',
+    'Nominee': 'bg-[#7E57C2]'
+  };
+  return <span className={`inline-flex items-center px-3 py-1 rounded text-xs font-medium ${colors[status] || 'bg-gray-400'} text-white`}>{status}</span>;
 }
