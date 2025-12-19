@@ -1,4 +1,4 @@
-// SubmissionsPage.tsx
+// src/view/films/SubmissionsPage.tsx
 
 'use client';
 
@@ -13,27 +13,34 @@ export default function SubmissionsPage() {
   const [judgingFilter, setJudgingFilter] = useState('All');
 
   useEffect(() => {
-    // Fetch submissions using the same logic as in SubmissionsTableSection
     async function fetchSubmissions() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      if (!token) return setSubmissions([]);
-      const res = await fetch('/api/submissions', {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      if (!res.ok) return setSubmissions([]);
-      const data = await res.json();
-      setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
-      setLoading(false);
+      if (!token) {
+        setLoading(false);
+        return setSubmissions([]);
+      }
+      try {
+        const res = await fetch('/api/submissions', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+      } catch (err) {
+        setSubmissions([]);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchSubmissions();
   }, []);
 
   // Filtering logic
   const filtered = submissions.filter((item) => {
-    // Map status for filtering
     let submissionStatus = 'Rejected';
     let judgingStatus = '';
+    
     if (item.submission_status === 'accept') {
       submissionStatus = 'Accepted';
     } else if (item.submission_status === 'reject') {
@@ -48,16 +55,18 @@ export default function SubmissionsPage() {
       submissionStatus = 'Accepted';
       judgingStatus = 'Nominee';
     }
-    // Filter logic
+
     const statusMatch = statusFilter === 'All' || submissionStatus === statusFilter;
     const judgingMatch = judgingFilter === 'All' || judgingStatus === judgingFilter;
     return statusMatch && judgingMatch;
   });
 
   // Map to the shape expected by SubmissionsTableSection
+  // Added filmId and eventId to satisfy the Submission type requirements
   const mapped = filtered.map((item) => {
     let submissionStatus = 'Rejected';
     let judgingStatus = '';
+    
     if (item.submission_status === 'accept') {
       submissionStatus = 'Accepted';
     } else if (item.submission_status === 'reject') {
@@ -72,10 +81,17 @@ export default function SubmissionsPage() {
       submissionStatus = 'Accepted';
       judgingStatus = 'Nominee';
     }
+
     return {
       id: item.id?.toString() ?? '',
-      film: item.film?.title ?? '-',
-      festival: item.event?.title ?? '-',
+      filmId: item.film_id?.toString() ?? item.film?.id?.toString() ?? '', // Fixed: Required field
+      eventId: item.event_id?.toString() ?? item.event?.id?.toString() ?? '', // Fixed: Required field
+      film: {
+        title: item.film?.title ?? '-',
+      },
+      festival: {
+        name: item.event?.title ?? '-',
+      },
       eventDate: item.event?.deadline ?? '-',
       submissionStatus,
       judgingStatus,
@@ -93,7 +109,7 @@ export default function SubmissionsPage() {
         onJudgingChange={setJudgingFilter}
         total={mapped.length}
       />
-      <SubmissionsTableSection submissions={mapped} loading={loading} />
+      <SubmissionsTableSection submissions={mapped as any} loading={loading} />
     </div>
   );
 }
