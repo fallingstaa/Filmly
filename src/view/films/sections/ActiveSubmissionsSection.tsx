@@ -1,6 +1,5 @@
+// src/view/films/sections/ActiveSubmissionsSection.tsx
 
-
-// --- Table design and logic copied from SubmissionsTableSection, with comments column ---
 'use client';
 import React, { useEffect, useState } from 'react';
 
@@ -23,7 +22,7 @@ async function fetchActiveSubmissions(): Promise<Submission[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    // Map backend fields to Submission type (snake_case from API)
+    
     const mapSubmission = (item: any): Submission => {
       let submissionStatus: 'Accepted' | 'Rejected' | 'None' = 'None';
       let judgingStatus: 'Under Review' | 'Shortlist' | 'Nominee' | '' = '';
@@ -50,10 +49,12 @@ async function fetchActiveSubmissions(): Promise<Submission[]> {
         comments: item.comments || '',
       };
     };
+    
     const allSubs = Array.isArray(data.submissions)
       ? data.submissions.map(mapSubmission)
       : [];
-    // Only show active (not accepted/rejected) submissions
+    
+    // Explicitly casting 's' as any here prevents another common build error
     return allSubs.filter((s: any) => s.submissionStatus === 'None');
   } catch (e) {
     console.error('Error fetching active submissions:', e);
@@ -99,9 +100,12 @@ export default function ActiveSubmissionsSection() {
                   <td className="px-6 py-4 align-top max-w-[260px] break-words">{row.film}</td>
                   <td className="px-6 py-4 align-top text-[#4D4D4D] max-w-[240px] break-words">{row.festival}</td>
                   <td className="px-6 py-4 align-top">
-                    {row.judgingStatus && row.judgingStatus !== ''
-                      ? <JudgingBadge status={row.judgingStatus} />
-                      : <span className="text-[#8A8A8A]">None</span>}
+                    {/* FIXED: Simply checking for truthiness avoids the comparison error */}
+                    {row.judgingStatus ? (
+                      <JudgingBadge status={row.judgingStatus} />
+                    ) : (
+                      <span className="text-[#8A8A8A]">None</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 align-top text-sm text-[#616161] max-w-[380px] break-words">{row.comments || '-'}</td>
                 </tr>
@@ -115,7 +119,9 @@ export default function ActiveSubmissionsSection() {
 }
 
 function JudgingBadge({ status }: { status: Submission['judgingStatus'] }) {
-  if (!status) return null;
+  // FIXED: Improved guard clause
+  if (!status || status === '') return null;
+  
   if (status === 'Under Review') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#4285F4] text-white">Under Review</span>;
   if (status === 'Shortlist') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#FBC02D] text-white">Shortlist</span>;
   if (status === 'Nominee') return <span className="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-[#7E57C2] text-white">Nominee</span>;
