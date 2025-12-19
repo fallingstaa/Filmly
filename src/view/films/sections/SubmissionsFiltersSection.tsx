@@ -44,7 +44,6 @@ export default function SubmissionsFiltersSection({
             <option value="-">-</option>
           </select>
         </div>
-
         <div className="mt-2 md:mt-0 md:ml-auto text-sm text-[#6F6F6F]">
           Total: {total}
         </div>

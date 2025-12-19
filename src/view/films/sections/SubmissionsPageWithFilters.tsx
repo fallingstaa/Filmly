@@ -1,17 +1,30 @@
 // SubmissionsPageWithFilters.tsx
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import SubmissionsFiltersSection from './SubmissionsFiltersSection';
 import SubmissionsTableSection from './SubmissionsTableSection';
+
+// 1. Defined strict interface to satisfy TypeScript build checks
+export interface Submission {
+  id: string;
+  film: string;
+  festival: string;
+  eventDate: string;
+  submissionStatus: 'Accepted' | 'Rejected';
+  judgingStatus: 'Under Review' | 'Shortlist' | 'Nominee' | '' | '-';
+  comments: string;
+  image: string;
+  eventId: string;
+  filmId: string;
+}
 
 export default function SubmissionsPageWithFilters() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [judgingFilter, setJudgingFilter] = useState<string>('All');
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]); 
   const [loading, setLoading] = useState(true);
 
-  // Fetch submissions once, then filter in-memory
-  React.useEffect(() => {
+  useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
@@ -31,10 +44,11 @@ export default function SubmissionsPageWithFilters() {
           return;
         }
         const data = await res.json();
-        // Map backend fields to Submission type (snake_case from API)
-        const mapSubmission = (item: any) => {
+        
+        const mapSubmission = (item: any): Submission => {
           let submissionStatus: 'Accepted' | 'Rejected' = 'Rejected';
-          let judgingStatus: 'Under Review' | 'Shortlist' | 'Nominee' | '' = '';
+          let judgingStatus: Submission['judgingStatus'] = '';
+          
           if (item.submission_status === 'accept') {
             submissionStatus = 'Accepted';
           } else if (item.submission_status === 'reject') {
@@ -49,6 +63,7 @@ export default function SubmissionsPageWithFilters() {
             submissionStatus = 'Accepted';
             judgingStatus = 'Nominee';
           }
+
           return {
             id: item.id?.toString() ?? '',
             film: item.film?.title ?? '-',
@@ -62,6 +77,7 @@ export default function SubmissionsPageWithFilters() {
             filmId: item.film?.id?.toString() ?? item.film_id?.toString() ?? '',
           };
         };
+
         const allSubs = Array.isArray(data.submissions)
           ? data.submissions.map(mapSubmission)
           : [];
@@ -75,11 +91,10 @@ export default function SubmissionsPageWithFilters() {
     fetchData();
   }, []);
 
-  // Filter logic
   const filtered = useMemo(() => {
     return submissions.filter((s) => {
-      let statusOk = statusFilter === 'All' || s.submissionStatus === statusFilter;
-      let judgingOk = judgingFilter === 'All' || s.judgingStatus === judgingFilter;
+      const statusOk = statusFilter === 'All' || s.submissionStatus === statusFilter;
+      const judgingOk = judgingFilter === 'All' || s.judgingStatus === judgingFilter;
       return statusOk && judgingOk;
     });
   }, [submissions, statusFilter, judgingFilter]);
@@ -87,12 +102,12 @@ export default function SubmissionsPageWithFilters() {
   return (
     <div className="flex flex-col gap-4">
       <SubmissionsFiltersSection
-      statusFilter={statusFilter}
-      judgingFilter={judgingFilter}
-      onStatusChange={setStatusFilter}
-      onJudgingChange={setJudgingFilter}
-      total={filtered.length}
-    />
+        statusFilter={statusFilter}
+        judgingFilter={judgingFilter}
+        onStatusChange={setStatusFilter}
+        onJudgingChange={setJudgingFilter}
+        total={filtered.length}
+      />
       <SubmissionsTableSection
         submissions={filtered}
         loading={loading}

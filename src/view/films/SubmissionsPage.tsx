@@ -88,9 +88,9 @@ export default function SubmissionsPage() {
     <div className="flex flex-col gap-6">
       <SubmissionsFiltersSection
         statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
         judgingFilter={judgingFilter}
-        setJudgingFilter={setJudgingFilter}
+        onStatusChange={setStatusFilter}
+        onJudgingChange={setJudgingFilter}
         total={mapped.length}
       />
       <SubmissionsTableSection submissions={mapped} loading={loading} />

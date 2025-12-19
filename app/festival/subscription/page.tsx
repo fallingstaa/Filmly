@@ -10,6 +10,8 @@ type Film = {
   duration?: number;
 };
 
+function FilmsListPage() {
+
 export function FilmsListPage() {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,4 @@ export function FilmsListPage() {
   );
 }
 
-export default function Subscription() {
-  return <div>Subscription Screen</div>;
-}
+export default FilmsListPage;
