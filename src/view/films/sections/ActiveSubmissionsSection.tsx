@@ -54,7 +54,7 @@ async function fetchActiveSubmissions(): Promise<Submission[]> {
       ? data.submissions.map(mapSubmission)
       : [];
     // Only show active (not accepted/rejected) submissions
-    return allSubs.filter((s) => s.submissionStatus === 'None');
+    return allSubs.filter((s: any) => s.submissionStatus === 'None');
   } catch (e) {
     console.error('Error fetching active submissions:', e);
     return [];
