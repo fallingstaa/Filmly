@@ -10,9 +10,8 @@ type Film = {
   duration?: number;
 };
 
-function FilmsListPage() {
-
-export function FilmsListPage() {
+// FIX: Removed the duplicate "function FilmsListPage() {" line that was causing the build crash
+export default function FilmsListPage() {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,5 +64,3 @@ export function FilmsListPage() {
     </div>
   );
 }
-
-export default FilmsListPage;
